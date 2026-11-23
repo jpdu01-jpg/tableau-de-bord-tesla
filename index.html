@@ -143,7 +143,17 @@
         <button id="btn-jeton">Enregistrer</button>
       </div>
       <p class="aide" id="info-mapbox"></p>
-      <p class="aide">La clé reste uniquement dans ce navigateur. Laisser vide et enregistrer pour l'effacer.</p>
+
+      <label for="jeton-mtm">Clé API MyTeslaMate (données de la voiture)</label>
+      <div class="ligne">
+        <input id="jeton-mtm" type="password" autocomplete="off" spellcheck="false" placeholder="Clé du plan API">
+        <button id="btn-jeton-mtm">Enregistrer</button>
+      </div>
+      <p class="aide" id="info-mtm"></p>
+      <button id="btn-test-tesla" class="test">Tester la connexion Tesla</button>
+      <pre class="resultat-test" id="resultat-test" hidden></pre>
+
+      <p class="aide">Les clés restent uniquement dans ce navigateur. Laisser vide et enregistrer pour effacer.</p>
     </details>
   </div>
 

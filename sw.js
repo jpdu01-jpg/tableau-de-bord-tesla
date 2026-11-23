@@ -1,12 +1,13 @@
 // Service worker : permet d'ouvrir l'application même sans réseau (zones blanches sur autoroute).
 // Stratégie « réseau d'abord » pour les fichiers de l'app : la dernière version est toujours utilisée
 // quand le réseau est là, la copie locale sert de secours. Les données (cartes, météo) ne sont jamais mises en cache.
-const CACHE = 'tableau-de-bord-v2';
+const CACHE = 'tableau-de-bord-v3';
 const FICHIERS = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png',
   'src/app.js', 'src/ui.js', 'src/lib/geo.js', 'src/lib/maxspeed.js', 'src/lib/trip.js', 'src/lib/wind.js',
   'src/sources/gps.js', 'src/sources/speedLimit.js', 'src/sources/weather.js', 'src/sources/tesla.js',
   'src/sources/simulation.js', 'src/sources/route-demo.js', 'src/lib/mapbox.js', 'src/sources/mapboxLimit.js',
+  'src/lib/teslaStream.js', 'src/sources/myteslamate.js',
 ];
 
 self.addEventListener('install', (e) => {

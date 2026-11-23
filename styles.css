@@ -160,6 +160,13 @@ button:active { transform: scale(0.97); }
   flex: 1; font: inherit; color: var(--texte); background: var(--verre); border: 1px solid var(--bord);
   border-radius: 12px; padding: 8px 12px; -webkit-user-select: text; user-select: text;
 }
+.reglages .test { margin-top: 10px; width: 100%; }
+.reglages .resultat-test {
+  white-space: pre-wrap; font: 12px ui-monospace, Menlo, monospace; color: var(--texte); text-align: left;
+  background: var(--verre); border: 1px solid var(--bord); border-radius: 12px; padding: 10px 12px; margin: 8px 0 0;
+  max-height: 30vh; overflow: auto; -webkit-user-select: text; user-select: text;
+}
+.reglages { max-height: 55vh; overflow: auto; }
 .accueil .reglages .aide { text-transform: none; letter-spacing: 0; margin: 8px 0 0; font-size: 12px; }
 
 /* ---------- Portrait (téléphone tenu verticalement) ---------- */
