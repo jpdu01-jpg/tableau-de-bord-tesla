@@ -115,6 +115,7 @@ small { font-size: 0.42em; color: var(--doux); margin-left: 0.35em; font-weight:
 .conso { display: flex; flex-direction: column; gap: 1.6vh; width: 100%; max-width: 300px; margin-top: 1vh; }
 .bloc { padding: 1.2vh 1.2vw; border-radius: 16px; background: var(--verre); border: 1px solid var(--bord); }
 .moyenne { color: var(--accent); }
+#conso-inst, #puissance { display: inline-block; width: 4ch; text-align: right; white-space: pre; } /* largeur fixe, chiffres de même largeur */
 .barre { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); margin-top: 0.8vh; overflow: hidden; }
 .barre > div { height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, var(--vert), var(--accent) 50%, var(--ambre)); transition: width 0.5s; }
 
@@ -210,7 +211,8 @@ button:active { transform: scale(0.97); }
 .navigation .regulateur, .navigation .batterie { margin-top: 0; font-size: clamp(20px, 4.4vh, 38px); }
 .navigation .droite { flex-direction: row; justify-content: space-around; width: 100%; gap: 2vw; }
 .navigation .jauge-puissance, .navigation .barre { display: none; }
-.navigation .puissance { margin-top: 0; font-size: clamp(20px, 4.4vh, 38px); }
+.navigation .puissance { margin-top: 0; font-size: clamp(20px, 4.4vh, 38px); white-space: nowrap; }
+.navigation .bloc small { display: block; margin: 0; font-size: 11px; } /* unité sous le nombre : le pavé reste étroit */
 .navigation .conso { flex-direction: row; margin-top: 0; max-width: none; width: auto; gap: 1vw; }
 .navigation .bloc { padding: 0.6vh 1vw; }
 .navigation .bloc .valeur { font-size: clamp(16px, 3.4vh, 28px); }

@@ -1,5 +1,6 @@
 // Affichage du tableau de bord. Aucun calcul métier ici : on reçoit un état et on l'affiche.
 import { ouvrirCarte, majCarte, redimensionnerCarte } from './carte.js';
+import { texteConsoInstantanee, textePuissance } from './lib/format.js';
 
 const VITESSE_MAX = 200; // km/h, fin de l'échelle du compteur
 const PUISSANCE_MIN = -60; // kW, récupération maximale affichée
@@ -111,10 +112,10 @@ export function afficher(e) {
     puissArc.setAttribute('d', arc(P.cx, P.cy, P.r, Math.min(angleZero, angleVal), Math.max(angleZero, angleVal)));
   }
   puissArc.classList.toggle('recup', (e.powerKw ?? 0) < 0);
-  $('puissance').textContent = nombre(e.powerKw);
+  $('puissance').textContent = textePuissance(e.powerKw); // 4 caractères : la ligne ne bouge pas
 
   // Consommation
-  $('conso-inst').textContent = nombre(e.instantKwh100, 1);
+  $('conso-inst').textContent = texteConsoInstantanee(e.instantKwh100); // 4 caractères : le pavé ne change pas de taille
   $('barre-inst').style.width = `${Math.min(100, Math.max(0, ((e.instantKwh100 ?? 0) / CONSO_BARRE_MAX) * 100))}%`;
   $('conso-moy').textContent = nombre(e.moyenneKwh100, 1);
 
