@@ -1,0 +1,59 @@
+import { test, egal, proche } from './harness.js';
+import { Trip, powerKw, instantKwhPer100 } from '../src/lib/trip.js';
+
+test('puissance : 400 V × 50 A = 20 kW', () => egal(powerKw(400, 50), 20));
+test('puissance : donnée manquante → null', () => egal(powerKw(400, null), null));
+test('20 kW à 100 km/h = 20 kWh/100 km', () => egal(instantKwhPer100(20, 100), 20));
+test('consommation instantanée à l\'arrêt → null', () => egal(instantKwhPer100(2, 0), null));
+
+test('distance : deux points à ~111 m', () => {
+  const t = new Trip();
+  t.addPosition({ lat: 48, lon: 2, accuracy: 5, speed: 20, t: 0 });
+  t.addPosition({ lat: 48.001, lon: 2, accuracy: 5, speed: 20, t: 5000 });
+  proche(t.distanceM, 111.2, 0.5);
+});
+test('distance : position imprécise ignorée', () => {
+  const t = new Trip();
+  t.addPosition({ lat: 48, lon: 2, accuracy: 5, speed: 20, t: 0 });
+  t.addPosition({ lat: 48.01, lon: 2, accuracy: 200, speed: 20, t: 1000 });
+  egal(t.distanceM, 0);
+});
+test('distance : dérive GPS à l\'arrêt ignorée', () => {
+  const t = new Trip();
+  t.addPosition({ lat: 48, lon: 2, accuracy: 5, speed: 0, t: 0 });
+  t.addPosition({ lat: 48.00005, lon: 2, accuracy: 5, speed: 0, t: 1000 }); // 5,5 m
+  egal(t.distanceM, 0);
+});
+test('énergie : 20 kW pendant 1 h = 20 kWh', () => {
+  const t = new Trip();
+  for (let s = 0; s <= 3600; s += 2) t.addPower(20, s * 1000);
+  proche(t.energieKwh, 20, 0.001);
+});
+test('énergie : coupure de données > 30 s non intégrée', () => {
+  const t = new Trip();
+  t.addPower(20, 0);
+  t.addPower(20, 120000);
+  egal(t.energieKwh, 0);
+});
+test('énergie : la récupération (puissance négative) réduit la consommation', () => {
+  const t = new Trip();
+  t.addPower(-36, 0);
+  t.addPower(-36, 10000); // -36 kW pendant 10 s = -0,1 kWh
+  proche(t.energieKwh, -0.1, 0.0001);
+});
+test('moyenne : 18 kWh sur 100 km = 18 kWh/100 km', () => {
+  const t = new Trip({ distanceM: 100000, energieKwh: 18 });
+  egal(t.moyenneKwhPer100, 18);
+});
+test('moyenne : moins de 1 km → null', () => egal(new Trip({ distanceM: 500, energieKwh: 1 }).moyenneKwhPer100, null));
+test('sauvegarde puis reprise du trajet', () => {
+  const t = new Trip();
+  t.addPosition({ lat: 48, lon: 2, accuracy: 5, speed: 20, t: 0 });
+  t.addPosition({ lat: 48.001, lon: 2, accuracy: 5, speed: 20, t: 5000 });
+  t.addPower(20, 0);
+  t.addPower(20, 10000);
+  const repris = new Trip(JSON.parse(JSON.stringify(t)));
+  egal(repris.distanceM, t.distanceM);
+  egal(repris.energieKwh, t.energieKwh);
+  egal(repris.debut, 0);
+});

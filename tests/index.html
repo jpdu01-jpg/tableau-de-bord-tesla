@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Tests — Tableau de bord</title>
+  <style>
+    body { font: 15px -apple-system, system-ui, sans-serif; background: #0b0d10; color: #ddd; padding: 24px; }
+    #resume { font-size: 22px; font-weight: 600; }
+    .ok { color: #4ade80; } .ko { color: #f87171; }
+    li { list-style: none; margin: 4px 0; } small { color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div id="resume">Tests en cours…</div>
+  <ul id="liste"></ul>
+  <script type="module">
+    import { afficher } from './harness.js';
+    import './geo.test.js';
+    import './maxspeed.test.js';
+    import './wind.test.js';
+    import './trip.test.js';
+    import './mapbox.test.js';
+    afficher();
+  </script>
+</body>
+</html>

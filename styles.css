@@ -1,0 +1,189 @@
+/* Tableau de bord — style « cockpit » haut de gamme : fond profond, chiffres fins, lueurs bleutées. */
+:root {
+  --fond: #05070a;
+  --verre: rgba(255, 255, 255, 0.035);
+  --bord: rgba(255, 255, 255, 0.08);
+  --texte: #eef3f8;
+  --doux: #7d8a99;
+  --accent: #5fe3ff;
+  --bleu: #1e6bff;
+  --bleu-tesla: #3e82ff;
+  --vert: #3ee6a0;
+  --ambre: #ffb547;
+  --rouge: #ff4d5e;
+  font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--fond); color: var(--texte); overflow: hidden; -webkit-user-select: none; user-select: none; }
+body {
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 55%, rgba(30, 107, 255, 0.13), transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% 120%, rgba(95, 227, 255, 0.06), transparent 60%),
+    var(--fond);
+}
+small { font-size: 0.42em; color: var(--doux); margin-left: 0.35em; font-weight: 400; letter-spacing: 0.02em; }
+.legende { font-size: clamp(10px, 1.6vh, 14px); text-transform: uppercase; letter-spacing: 0.16em; color: var(--doux); }
+.valeur { font-size: clamp(20px, 5vh, 44px); font-weight: 300; line-height: 1.1; }
+
+/* ---------- Disposition (paysage par défaut) ---------- */
+#cockpit {
+  display: grid;
+  height: 100dvh;
+  padding: max(12px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  grid-template-columns: 1fr 1.6fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "haut haut haut" "gauche centre droite" "bas bas bas";
+  gap: 1vh 2vw;
+}
+.haut { grid-area: haut; display: flex; align-items: center; justify-content: space-between; }
+.gauche { grid-area: gauche; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2vh; }
+.centre { grid-area: centre; position: relative; display: grid; place-items: center; min-height: 0; }
+.droite { grid-area: droite; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1vh; min-width: 0; }
+.bas {
+  grid-area: bas; display: flex; align-items: center; justify-content: space-between; gap: 2vw;
+  padding: 1.4vh 2vw; border-radius: 22px; background: var(--verre); border: 1px solid var(--bord);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+
+/* ---------- Barre du haut ---------- */
+.statuts { display: flex; gap: 8px; }
+.pastille {
+  font-size: 11px; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 99px;
+  border: 1px solid var(--bord); color: var(--doux); background: var(--verre);
+}
+.pastille::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; background: var(--doux); vertical-align: 1px; }
+.pastille.ok::before { background: var(--vert); box-shadow: 0 0 6px var(--vert); }
+.pastille.attente::before { background: var(--ambre); }
+.pastille.erreur::before { background: var(--rouge); }
+.pastille.simulation::before { background: var(--accent); }
+.route { font-size: clamp(12px, 2vh, 16px); color: var(--doux); letter-spacing: 0.06em; }
+.heure { font-size: clamp(14px, 2.6vh, 22px); font-weight: 300; }
+
+/* ---------- Compteur ---------- */
+.cadran { position: absolute; inset: 0; width: 100%; height: 100%; }
+.arc-fond { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 10; stroke-linecap: round; }
+.arc-vitesse { fill: none; stroke: url(#grad-vitesse); stroke-width: 10; stroke-linecap: round; transition: stroke-dasharray 0.8s ease-out; }
+.arc-vitesse.depasse { stroke: var(--rouge); }
+.repere-limite { stroke: var(--rouge); stroke-width: 4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--rouge)); }
+.graduation { stroke: rgba(255, 255, 255, 0.25); stroke-width: 1.2; }
+.graduation.majeure { stroke: rgba(255, 255, 255, 0.6); stroke-width: 2; }
+.chiffre { fill: var(--doux); font-size: 10px; text-anchor: middle; dominant-baseline: middle; }
+.vitesse { position: relative; text-align: center; margin-top: 2vh; }
+.vitesse-val {
+  font-size: clamp(90px, 30vh, 260px); font-weight: 200; line-height: 0.9; letter-spacing: -0.04em;
+  text-shadow: 0 0 40px rgba(95, 227, 255, 0.25); transition: color 0.4s;
+}
+.vitesse-val.depasse { color: var(--rouge); text-shadow: 0 0 40px rgba(255, 77, 94, 0.4); }
+.vitesse-unite { font-size: clamp(12px, 2.4vh, 20px); color: var(--doux); letter-spacing: 0.3em; text-transform: uppercase; }
+
+/* ---------- Limitation et régulateur ---------- */
+.panneau-limite {
+  width: clamp(80px, 22vh, 170px); aspect-ratio: 1; border-radius: 50%;
+  background: #fff; border: clamp(8px, 2.4vh, 18px) solid #e30613;
+  display: grid; place-items: center; color: #111;
+  font-size: clamp(30px, 9vh, 76px); font-weight: 700; letter-spacing: -0.03em;
+  box-shadow: 0 0 30px rgba(227, 6, 19, 0.25);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.panneau-limite.inconnue { opacity: 0.25; }
+.panneau-limite.change { transform: scale(1.08); }
+.regulateur { display: flex; align-items: baseline; font-size: clamp(24px, 6vh, 52px); font-weight: 300; color: var(--doux); margin-top: 2vh; }
+.regulateur.actif { color: var(--bleu-tesla); text-shadow: 0 0 18px rgba(62, 130, 255, 0.45); } /* bleu : standard Tesla */
+.batterie { display: flex; align-items: center; font-size: clamp(22px, 5vh, 44px); font-weight: 300; margin-top: 2vh; }
+.batterie-corps {
+  position: relative; width: 1.5em; height: 0.72em; margin-right: 0.35em;
+  border: 2px solid rgba(255, 255, 255, 0.55); border-radius: 0.14em; padding: 2px;
+}
+.batterie-corps::after { /* borne + */
+  content: ""; position: absolute; right: -0.14em; top: 50%; transform: translateY(-50%);
+  width: 0.08em; height: 0.3em; background: rgba(255, 255, 255, 0.55); border-radius: 0 2px 2px 0;
+}
+.batterie-niveau { height: 100%; width: 0; border-radius: 0.06em; background: var(--vert); transition: width 1s, background 0.5s; }
+.batterie.faible .batterie-niveau { background: var(--ambre); }
+.batterie.critique .batterie-niveau { background: var(--rouge); }
+.batterie.critique { color: var(--rouge); }
+.ico { width: 0.7em; height: 0.7em; fill: currentColor; margin-right: 0.25em; align-self: center; }
+
+/* ---------- Puissance et consommation ---------- */
+.jauge-puissance { width: 100%; max-width: 300px; }
+.arc-puissance { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: butt; filter: drop-shadow(0 0 5px rgba(95, 227, 255, 0.5)); }
+.arc-puissance.recup { stroke: var(--vert); }
+.zero { stroke: rgba(255, 255, 255, 0.7); stroke-width: 2; }
+.petit { fill: var(--doux); font-size: 9px; letter-spacing: 0.12em; }
+.puissance { font-size: clamp(26px, 7vh, 56px); font-weight: 300; margin-top: -4vh; }
+.conso { display: flex; flex-direction: column; gap: 1.6vh; width: 100%; max-width: 300px; margin-top: 1vh; }
+.bloc { padding: 1.2vh 1.2vw; border-radius: 16px; background: var(--verre); border: 1px solid var(--bord); }
+.moyenne { color: var(--accent); }
+.barre { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); margin-top: 0.8vh; overflow: hidden; }
+.barre > div { height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, var(--vert), var(--accent) 50%, var(--ambre)); transition: width 0.5s; }
+
+/* ---------- Bas ---------- */
+.info { display: flex; flex-direction: column; gap: 0.3vh; }
+.info .valeur { font-size: clamp(18px, 4.2vh, 36px); }
+.vent { flex-direction: row; align-items: center; gap: 12px; }
+.vent-svg { width: clamp(40px, 8vh, 64px); height: clamp(40px, 8vh, 64px); }
+.vent-cercle { fill: none; stroke: var(--bord); stroke-width: 1.5; }
+.vent-voiture { fill: rgba(255, 255, 255, 0.14); stroke: rgba(255, 255, 255, 0.5); stroke-width: 1; }
+.vent-pare-brise { fill: rgba(95, 227, 255, 0.45); }
+.vent-lunette { fill: rgba(95, 227, 255, 0.25); }
+.vent-phare { fill: #fff; filter: drop-shadow(0 0 1.5px #fff); }
+.vent-feu { fill: var(--rouge); }
+#vent-fleche { transform-origin: 30px 30px; transition: transform 1s ease-out; }
+.vent-trait { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.vent.face .vent-trait { stroke: var(--ambre); }
+.vent.arriere .vent-trait { stroke: var(--vert); }
+.actions { display: flex; gap: 8px; }
+button {
+  font: inherit; color: var(--texte); background: var(--verre); border: 1px solid var(--bord);
+  border-radius: 12px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+}
+button:active { transform: scale(0.97); }
+
+/* ---------- Écran d'accueil ---------- */
+.accueil {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse at 50% 40%, rgba(30, 107, 255, 0.18), transparent 60%), var(--fond); z-index: 10;
+}
+.accueil[hidden] { display: none; }
+.accueil h1 { font-weight: 200; font-size: clamp(32px, 7vh, 56px); margin: 0; letter-spacing: -0.02em; }
+.accueil p { color: var(--doux); margin: 0 0 18px; letter-spacing: 0.12em; text-transform: uppercase; font-size: 13px; }
+.accueil .principal { background: linear-gradient(135deg, var(--bleu), var(--accent)); border: 0; font-size: 18px; padding: 14px 34px; border-radius: 16px; color: #031018; font-weight: 600; }
+.accueil .secondaire { min-width: 260px; }
+.accueil .note { text-transform: none; letter-spacing: 0; color: var(--ambre); max-width: 420px; text-align: center; }
+
+.reglages { margin-top: 10px; width: min(420px, 90vw); color: var(--doux); font-size: 13px; }
+.reglages summary { cursor: pointer; text-align: center; letter-spacing: 0.1em; text-transform: uppercase; }
+.reglages label { display: block; margin: 12px 0 6px; }
+.reglages .ligne { display: flex; gap: 8px; }
+.reglages input {
+  flex: 1; font: inherit; color: var(--texte); background: var(--verre); border: 1px solid var(--bord);
+  border-radius: 12px; padding: 8px 12px; -webkit-user-select: text; user-select: text;
+}
+.accueil .reglages .aide { text-transform: none; letter-spacing: 0; margin: 8px 0 0; font-size: 12px; }
+
+/* ---------- Portrait (téléphone tenu verticalement) ---------- */
+@media (orientation: portrait) {
+  #cockpit {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: "haut haut" "centre centre" "gauche droite" "bas bas";
+  }
+  .centre { width: min(100%, 44vh); aspect-ratio: 1; justify-self: center; }
+  .vitesse { margin-top: 3vh; }
+  .vitesse-val { font-size: min(24vw, 13vh); }
+  .gauche, .droite { justify-content: flex-start; gap: 0.8vh; }
+  .panneau-limite { width: min(26vw, 13vh); border-width: min(3.4vw, 1.8vh); font-size: min(10vw, 5vh); }
+  .regulateur { font-size: min(8vw, 4vh); margin-top: 1vh; }
+  .batterie { font-size: min(7vw, 3.6vh); margin-top: 1vh; }
+  .jauge-puissance { display: none; } /* trop petit en portrait : on garde la valeur en kW */
+  .puissance { margin-top: 0; font-size: min(9vw, 4.5vh); }
+  .conso { gap: 1vh; margin-top: 0; }
+  .bloc .valeur { font-size: min(7vw, 3.6vh); }
+  .bloc small { display: block; margin: 0; font-size: 11px; }
+  .bas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4vh 3vw; border-radius: 18px; }
+  .info .valeur { font-size: min(6.5vw, 3.4vh); }
+  .vent { grid-column: span 2; }
+  .actions { justify-content: flex-end; align-self: end; }
+  .route { display: none; }
+}

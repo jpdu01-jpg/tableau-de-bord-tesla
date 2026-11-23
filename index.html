@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#05070a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tableau de bord">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>Tableau de bord</title>
+</head>
+<body>
+  <main id="cockpit" aria-label="Tableau de bord">
+    <!-- Barre du haut : état des sources de données et heure -->
+    <header class="haut">
+      <div class="statuts">
+        <span class="pastille" id="st-gps">GPS</span>
+        <span class="pastille" id="st-osm">Cartes</span>
+        <span class="pastille" id="st-meteo">Météo</span>
+        <span class="pastille" id="st-tesla">Tesla</span>
+      </div>
+      <div class="route" id="route"></div>
+      <div class="heure" id="heure">--:--</div>
+    </header>
+
+    <!-- Colonne gauche : limitation et régulateur -->
+    <section class="gauche">
+      <div class="panneau-limite" id="limite" aria-label="Limitation de vitesse">
+        <span id="limite-val">--</span>
+      </div>
+      <div class="legende">Limitation</div>
+
+      <div class="regulateur" id="regulateur">
+        <svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M12 4a9 9 0 0 0-9 9h2a7 7 0 0 1 14 0h2a9 9 0 0 0-9-9Zm4.2 4.4-4.9 4.2a1.5 1.5 0 1 0 1.9 1.9l4.2-4.9-1.2-1.2Z"/></svg>
+        <span id="regul-val">--</span><small>km/h</small>
+      </div>
+      <div class="legende">Régulateur</div>
+
+      <div class="batterie" id="batterie">
+        <div class="batterie-corps"><div class="batterie-niveau" id="batterie-niveau"></div></div>
+        <span id="batterie-val">--</span><small>%</small>
+      </div>
+      <div class="legende">Batterie</div>
+    </section>
+
+    <!-- Centre : compteur de vitesse -->
+    <section class="centre">
+      <svg class="cadran" id="cadran" viewBox="0 0 300 300" aria-hidden="true">
+        <defs>
+          <linearGradient id="grad-vitesse" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#1e6bff"/>
+            <stop offset="1" stop-color="#5fe3ff"/>
+          </linearGradient>
+          <filter id="lueur" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="flou"/>
+            <feMerge><feMergeNode in="flou"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="graduations"></g>
+        <path id="arc-fond" class="arc-fond" pathLength="1000"/>
+        <path id="arc-vitesse" class="arc-vitesse" pathLength="1000" filter="url(#lueur)"/>
+        <line id="repere-limite" class="repere-limite"/>
+      </svg>
+      <div class="vitesse">
+        <div class="vitesse-val" id="vitesse">0</div>
+        <div class="vitesse-unite">km/h</div>
+      </div>
+    </section>
+
+    <!-- Colonne droite : puissance et consommation -->
+    <section class="droite">
+      <svg class="jauge-puissance" viewBox="0 0 200 120" aria-hidden="true">
+        <path id="puiss-fond" class="arc-fond" pathLength="1000"/>
+        <path id="puiss-arc" class="arc-puissance" pathLength="1000"/>
+        <line id="puiss-zero" class="zero"/>
+        <text x="22" y="112" class="petit">RÉCUP</text>
+        <text x="178" y="112" class="petit" text-anchor="end">PUISSANCE</text>
+      </svg>
+      <div class="puissance"><span id="puissance">--</span><small>kW</small></div>
+
+      <div class="conso">
+        <div class="bloc">
+          <div class="legende">Instantanée</div>
+          <div class="valeur"><span id="conso-inst">--</span><small>kWh/100 km</small></div>
+          <div class="barre"><div id="barre-inst"></div></div>
+        </div>
+        <div class="bloc">
+          <div class="legende">Moyenne du trajet</div>
+          <div class="valeur moyenne"><span id="conso-moy">--</span><small>kWh/100 km</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bas : trajet et vent -->
+    <footer class="bas">
+      <div class="info"><div class="legende">Trajet</div><div class="valeur"><span id="distance">0,0</span><small>km</small></div></div>
+      <div class="info"><div class="legende">Durée</div><div class="valeur" id="duree">0:00</div></div>
+      <div class="info"><div class="legende">Énergie</div><div class="valeur"><span id="energie">0,0</span><small>kWh</small></div></div>
+      <div class="info vent">
+        <svg viewBox="0 0 60 60" class="vent-svg" aria-hidden="true">
+          <circle cx="30" cy="30" r="27" class="vent-cercle"/>
+          <!-- voiture vue de dessus, AVANT VERS LE HAUT : capot arrondi + phares blancs en haut, feux rouges en bas -->
+          <path d="M24 19 Q24 14 30 14 Q36 14 36 19 L37 41 Q37 45 33 45 L27 45 Q23 45 23 41 Z" class="vent-voiture"/>
+          <path d="M25 23 L35 23 L33.5 28.5 L26.5 28.5 Z" class="vent-pare-brise"/>
+          <path d="M26.5 37 L33.5 37 L34.5 40 L25.5 40 Z" class="vent-lunette"/>
+          <circle cx="26.3" cy="16.4" r="1.2" class="vent-phare"/><circle cx="33.7" cy="16.4" r="1.2" class="vent-phare"/>
+          <rect x="24.5" y="43.3" width="3" height="1.2" rx="0.6" class="vent-feu"/><rect x="32.5" y="43.3" width="3" height="1.2" rx="0.6" class="vent-feu"/>
+          <!-- flèche du vent : dessinée « venant de l'avant » (en haut, pointe vers la voiture), puis tournée -->
+          <g id="vent-fleche"><path d="M30 2 L30 11 M25.5 7 L30 11 L34.5 7" class="vent-trait"/></g>
+        </svg>
+        <div>
+          <div class="legende" id="vent-libelle">Vent</div>
+          <div class="valeur"><span id="vent-vitesse">--</span><small>km/h</small></div>
+        </div>
+      </div>
+      <div class="info"><div class="legende">Extérieur</div><div class="valeur"><span id="temperature">--</span><small>°C</small></div></div>
+      <div class="actions">
+        <button id="btn-nouveau" title="Remettre le trajet à zéro">Nouveau trajet</button>
+        <button id="btn-quitter" title="Arrêter">■</button>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Écran d'accueil -->
+  <div id="accueil" class="accueil">
+    <h1>Tableau de bord</h1>
+    <p>Tesla Model Y · Voyage</p>
+    <button id="btn-demarrer" class="principal">Démarrer le trajet</button>
+    <button id="btn-reprendre" class="secondaire" hidden>Reprendre le trajet en cours</button>
+    <button id="btn-demo" class="secondaire">Mode démonstration</button>
+    <p class="note" id="message"></p>
+
+    <details class="reglages">
+      <summary>Réglages</summary>
+      <label for="jeton-mapbox">Clé Mapbox (limitations de vitesse)</label>
+      <div class="ligne">
+        <input id="jeton-mapbox" type="password" autocomplete="off" spellcheck="false" placeholder="pk.…">
+        <button id="btn-jeton">Enregistrer</button>
+      </div>
+      <p class="aide" id="info-mapbox"></p>
+      <p class="aide">La clé reste uniquement dans ce navigateur. Laisser vide et enregistrer pour l'effacer.</p>
+    </details>
+  </div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tableau-de-bord",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/jpdu01/Projets/tableau-de-bord-tesla/serveur.py"],
+      "port": 8173
+    }
+  ]
+}
