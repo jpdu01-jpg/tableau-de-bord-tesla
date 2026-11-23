@@ -113,3 +113,38 @@ export function texteValeur(v, max = 40) {
   const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
   return s.length > max ? `${s.slice(0, max)}… (${s.length} caractères)` : s;
 }
+
+// ---------- Conversion des champs Tesla en données du tableau de bord ----------
+
+/**
+ * Unité de CruiseSetSpeed : la documentation ne la précise pas (mph comme VehicleSpeed, ou unité de l'écran ?).
+ * On la devine une fois en roulant : régulateur engagé, la vitesse GPS est proche de la consigne.
+ * Renvoie 'kmh', 'mph' ou null (pas encore possible de décider).
+ */
+export function devinerUniteRegulateur(consigne, vitesseGpsKmh) {
+  if (consigne == null || consigne <= 0 || vitesseGpsKmh == null || vitesseGpsKmh < 50) return null;
+  const ecartKmh = Math.abs(consigne - vitesseGpsKmh);
+  const ecartMph = Math.abs(consigne * MILE_KM - vitesseGpsKmh);
+  if (Math.min(ecartKmh, ecartMph) > 8) return null; // régulateur probablement pas engagé : on ne décide pas
+  return ecartMph < ecartKmh ? 'mph' : 'kmh';
+}
+
+/**
+ * Transforme les champs reçus ({ PackVoltage: 398, CruiseSetSpeed: 130, … }) en données pour l'application :
+ * { powerKw?, cruiseKmh?, batteryPct? }. La tension et le courant arrivent séparément : `memoire` garde
+ * la dernière valeur de chacun pour calculer la puissance. `uniteRegulateur` : 'kmh' (par défaut) ou 'mph'.
+ */
+export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
+  const d = {};
+  if ('PackVoltage' in champs) memoire.tension = champs.PackVoltage;
+  if ('PackCurrent' in champs) memoire.courant = champs.PackCurrent;
+  if (('PackVoltage' in champs || 'PackCurrent' in champs) && memoire.tension != null && memoire.courant != null) {
+    d.powerKw = (memoire.tension * memoire.courant) / 1000; // courant positif = la batterie se décharge
+  }
+  if ('CruiseSetSpeed' in champs) {
+    const c = champs.CruiseSetSpeed;
+    d.cruiseKmh = c == null || c <= 0 ? null : uniteRegulateur === 'mph' ? c * MILE_KM : c;
+  }
+  if (champs.BatteryLevel != null) d.batteryPct = champs.BatteryLevel;
+  return d;
+}

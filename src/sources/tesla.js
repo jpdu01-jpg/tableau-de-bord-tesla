@@ -6,8 +6,8 @@
 //   BatteryLevel              → niveau de batterie (%), intervalle 60 s : ~1 signal par minute au maximum,
 //                               soit < 500 signaux pour 8 h ≈ 0,01 € par trajet
 //
-// ⚠️ Pas encore branché : il faut d'abord un compte MyTeslaMate (plan API) et la documentation
-// de leur flux temps réel. En attendant, l'application affiche « Tesla non connectée ».
+// Source réelle : TeslaMyTeslaMate (src/sources/myteslamate.js), utilisée quand une clé MyTeslaMate est enregistrée.
+// Sans clé, l'application utilise TeslaNonConnectee et affiche « Tesla non connectée ».
 
 export const TESLA_NON_CONNECTEE = 'non connectée';
 
@@ -24,5 +24,3 @@ export class TeslaNonConnectee {
   stop() {}
 }
 
-// Futur : class TeslaMyTeslaMate { ... } qui ouvrira le flux WebSocket de MyTeslaMate
-// avec un jeton saisi par l'utilisateur (stocké uniquement dans le navigateur).

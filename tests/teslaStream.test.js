@@ -94,3 +94,27 @@ test('affichage : position et valeur absente', () => {
   egal(texteValeur({ lat: 47.94, lon: 3.24 }), '47.94, 3.24');
   egal(texteValeur(null), '—');
 });
+
+// ---------- Conversion en données du tableau de bord ----------
+import { donneesTesla, devinerUniteRegulateur } from '../src/lib/teslaStream.js';
+
+test('données : puissance = tension × courant, même reçus séparément', () => {
+  const memoire = {};
+  egal(donneesTesla({ PackVoltage: 400 }, memoire).powerKw, undefined);
+  egal(donneesTesla({ PackCurrent: 50 }, memoire).powerKw, 20);
+  egal(donneesTesla({ PackCurrent: -25 }, memoire).powerKw, -10); // récupération
+});
+test('données : régulateur en km/h ou en mph', () => {
+  egal(donneesTesla({ CruiseSetSpeed: 130 }, {}).cruiseKmh, 130);
+  proche(donneesTesla({ CruiseSetSpeed: 80 }, {}, 'mph').cruiseKmh, 128.7, 0.1);
+});
+test('données : régulateur absent ou à 0 → null', () => {
+  egal(donneesTesla({ CruiseSetSpeed: null }, {}).cruiseKmh, null);
+  egal(donneesTesla({ CruiseSetSpeed: 0 }, {}).cruiseKmh, null);
+  vrai(!('cruiseKmh' in donneesTesla({ BatteryLevel: 60 }, {})));
+});
+test('données : batterie', () => egal(donneesTesla({ BatteryLevel: 64 }, {}).batteryPct, 64));
+test('unité régulateur : 130 à 128 km/h GPS → km/h', () => egal(devinerUniteRegulateur(130, 128), 'kmh'));
+test('unité régulateur : 80 à 128 km/h GPS → mph', () => egal(devinerUniteRegulateur(80, 128), 'mph'));
+test('unité régulateur : vitesse loin de la consigne (pas engagé) → null', () => egal(devinerUniteRegulateur(80, 90), null));
+test('unité régulateur : trop lent pour décider → null', () => egal(devinerUniteRegulateur(50, 30), null));

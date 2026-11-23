@@ -28,6 +28,20 @@
       <div class="heure" id="heure">--:--</div>
     </header>
 
+    <!-- Carte de navigation : visible en mode navigation (toucher l'écran, ou automatiquement avec une destination) -->
+    <section class="carte" id="zone-carte" aria-label="Navigation">
+      <div id="carte" class="carte-fond"></div>
+      <p class="carte-message" id="carte-message"></p>
+      <div class="nav-haut"><span class="nav-dest" id="nav-dest">Aucune destination</span></div>
+      <div class="nav-bas" id="nav-bas">
+        <div><div class="legende">Arrivée</div><div class="valeur" id="nav-heure">--:--</div></div>
+        <div><div class="legende">Restant</div><div class="valeur"><span id="nav-km">--</span><small>km</small></div></div>
+        <div><div class="legende">Durée</div><div class="valeur" id="nav-duree">--</div></div>
+        <div id="nav-trafic-bloc"><div class="legende">Trafic</div><div class="valeur"><span id="nav-trafic">--</span><small>min</small></div></div>
+        <div><div class="legende">Batterie arrivée</div><div class="valeur"><span id="nav-batterie">--</span><small>%</small></div></div>
+      </div>
+    </section>
+
     <!-- Colonne gauche : limitation et régulateur -->
     <section class="gauche">
       <div class="panneau-limite" id="limite" aria-label="Limitation de vitesse">

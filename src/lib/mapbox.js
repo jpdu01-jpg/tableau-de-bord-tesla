@@ -25,7 +25,8 @@ export function urlMapMatching(trace, jeton) {
   const temps = trace.map((p) => (precedent = Math.max(Math.floor(p.t / 1000), precedent + 1))).join(';');
   return (
     `https://api.mapbox.com/matching/v5/mapbox/driving/${coords}` +
-    `?annotations=maxspeed&overview=false&tidy=false&radiuses=${rayons}&timestamps=${temps}` +
+    // overview=full est exigé par Mapbox pour obtenir maxspeed (sinon erreur 422 « Overview option must be full »)
+    `?annotations=maxspeed&overview=full&tidy=false&radiuses=${rayons}&timestamps=${temps}` +
     `&access_token=${encodeURIComponent(jeton)}`
   );
 }

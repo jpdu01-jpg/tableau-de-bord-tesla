@@ -4,12 +4,13 @@ import { relativeWind } from './lib/wind.js';
 import { startGps } from './sources/gps.js';
 import { SpeedLimitService } from './sources/speedLimit.js';
 import { MapboxLimitService, lireJeton, enregistrerJeton, lireCompteur } from './sources/mapboxLimit.js';
-import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux } from './sources/myteslamate.js';
+import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux, TeslaMyTeslaMate } from './sources/myteslamate.js';
+import { navigationActive, basculeAuto, heureArrivee } from './lib/navigation.js';
 import { SIGNAUX_PAR_CREDIT, texteValeur } from './lib/teslaStream.js';
 import { WeatherService } from './sources/weather.js';
 import { TeslaNonConnectee } from './sources/tesla.js';
 import { Simulation } from './sources/simulation.js';
-import { construire, afficher } from './ui.js';
+import { construire, afficher, afficherModeNavigation } from './ui.js';
 
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -35,7 +36,12 @@ const etat = {
   batteryT: 0,
   derniereTesla: 0,
   recuLe: 0, // heure de réception (horloge du téléphone) de la dernière position
+  nav: {}, // navigation de la Tesla : destinationNom, destinationPos, trace, minutesArrivee, kmArrivee, retardTraficMin, batterieArriveePct
+  navRecueLe: 0, // heure de réception des minutes restantes (pour l'heure d'arrivée)
 };
+let modeNavigation = false;
+
+const CHAMPS_NAV = ['destinationNom', 'destinationPos', 'trace', 'minutesArrivee', 'kmArrivee', 'retardTraficMin', 'batterieArriveePct'];
 
 const cleTrajet = () => (mode === 'demo' ? 'trajet-demo' : 'trajet');
 
@@ -46,6 +52,7 @@ function surPosition(p) {
   trip.addPosition(p);
   choisirLimite(p);
   etat.meteo = meteo.update(p);
+  if ('vitesseGpsKmh' in tesla) tesla.vitesseGpsKmh = p.speed * 3.6; // sert à deviner l'unité du régulateur
   if (simulation) simulation.ventDeFaceMs = ventRelatif()?.face / 3.6 || 0; // la vraie météo influence la conso simulée
   planifierAffichage();
 }
@@ -74,7 +81,19 @@ function surTesla(d) {
     etat.batteryPct = d.batteryPct;
     etat.batteryT = d.t;
   }
+  const avaitDestination = navigationActive(etat.nav);
+  for (const c of CHAMPS_NAV) if (c in d) etat.nav[c] = d[c];
+  if ('minutesArrivee' in d) etat.navRecueLe = d.t;
+  const bascule = basculeAuto(avaitDestination, navigationActive(etat.nav));
+  if (bascule) changerModeNavigation(bascule === 'ouvrir');
   etat.derniereTesla = d.t;
+  planifierAffichage();
+}
+
+// Écran partagé carte + compteurs. Toucher l'écran bascule ; une destination saisie dans la Tesla l'ouvre.
+function changerModeNavigation(ouvert) {
+  modeNavigation = ouvert;
+  afficherModeNavigation(ouvert, lireJeton(), etat.fix);
   planifierAffichage();
 }
 
@@ -113,6 +132,14 @@ function calculerEcran() {
     vent,
     temperature: m?.temperature ?? null,
     sourceLimite: etat.sourceLimite,
+    navigation: {
+      ...etat.nav,
+      active: navigationActive(etat.nav),
+      // les minutes restantes arrivent au plus une fois par minute : on décompte le temps écoulé depuis
+      minutesArrivee: etat.nav.minutesArrivee == null ? null : Math.max(0, etat.nav.minutesArrivee - (maintenant - etat.navRecueLe) / 60000),
+      heureArrivee: heureArrivee(etat.navRecueLe, etat.nav.minutesArrivee),
+    },
+    carte: { position: p, cap: p?.heading, vitesseKmh: speedKmh, trace: etat.nav.trace, destinationPos: etat.nav.destinationPos },
     statuts: {
       'st-gps': Date.now() - etat.recuLe < 10000 ? 'ok' : 'attente',
       'st-osm': etat.sourceLimite === 'Mapbox' ? (mapbox.etat === 'refuse' ? 'erreur' : mapbox.etat) : limites.etat,
@@ -133,6 +160,8 @@ let simulation = null;
 
 async function demarrer(nouveauMode, reprendre) {
   mode = nouveauMode;
+  etat.nav = {};
+  changerModeNavigation(false);
   const sauvegarde = reprendre ? JSON.parse(localStorage.getItem(cleTrajet()) || 'null') : null;
   trip = new Trip(sauvegarde);
   $('accueil').hidden = true;
@@ -146,11 +175,15 @@ async function demarrer(nouveauMode, reprendre) {
     arreter = () => sim.stop();
   } else {
     simulation = null;
-    tesla = new TeslaNonConnectee();
+    tesla = lireJetonMTM() ? new TeslaMyTeslaMate() : new TeslaNonConnectee();
+    tesla.start(surTesla);
     const stopGps = startGps(surPosition, (err) => {
       $('message').textContent = err.message;
     });
-    arreter = () => stopGps();
+    arreter = () => {
+      stopGps();
+      tesla.stop();
+    };
   }
   planifierAffichage();
 }
@@ -232,6 +265,9 @@ $('btn-demarrer').onclick = () => demarrer('reel', false);
 $('btn-reprendre').onclick = () => demarrer('reel', true);
 $('btn-demo').onclick = () => demarrer('demo', false);
 $('btn-quitter').onclick = quitter;
+$('cockpit').addEventListener('click', (ev) => {
+  if (!ev.target.closest('button, a')) changerModeNavigation(!modeNavigation);
+});
 $('btn-jeton-mtm').onclick = () => {
   enregistrerJetonMTM($('jeton-mtm').value);
   $('jeton-mtm').value = '';

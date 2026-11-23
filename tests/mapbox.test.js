@@ -20,6 +20,7 @@ test('url : coordonnées « longitude,latitude » et clé encodée', () => {
   const url = urlMapMatching([pt(48, 1000), pt(48.001, 2000)], 'pk.a/b');
   vrai(url.includes('/mapbox/driving/3.000000,48.000000;3.000000,48.001000?'), url);
   vrai(url.includes('annotations=maxspeed'));
+  vrai(url.includes('overview=full'), 'Mapbox refuse maxspeed sans overview=full');
   vrai(url.includes('access_token=pk.a%2Fb'));
 });
 test('url : horodatages strictement croissants même si identiques', () => {

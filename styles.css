@@ -169,6 +169,55 @@ button:active { transform: scale(0.97); }
 .reglages { max-height: 55vh; overflow: auto; }
 .accueil .reglages .aide { text-transform: none; letter-spacing: 0; margin: 8px 0 0; font-size: 12px; }
 
+/* ---------- Mode navigation : écran partagé carte + compteurs compacts ---------- */
+.carte { display: none; grid-area: carte; position: relative; min-height: 0; border-radius: 22px; overflow: hidden; border: 1px solid var(--bord); background: #0b0f14; }
+.carte-fond, .carte-fond.mapboxgl-map { position: absolute; inset: 0; } /* Mapbox impose « relative » : on garde la carte en plein cadre */
+.carte-message { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 20px; text-align: center; color: var(--doux); pointer-events: none; }
+.carte-message:empty { display: none; }
+.nav-haut { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; pointer-events: none; }
+.nav-dest {
+  max-width: 100%; padding: 8px 14px; border-radius: 14px; font-size: clamp(14px, 2.6vh, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(5, 7, 10, 0.78); border: 1px solid var(--bord); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.nav-dest::before { content: "⚑"; color: var(--bleu-tesla); margin-right: 8px; }
+.nav-bas {
+  position: absolute; left: 10px; right: 10px; bottom: 32px; display: flex; justify-content: space-between; gap: 10px; /* au-dessus du logo Mapbox (obligatoire) */
+  padding: 8px 14px; border-radius: 16px; pointer-events: none;
+  background: rgba(5, 7, 10, 0.82); border: 1px solid var(--bord); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.nav-bas .valeur { font-size: clamp(16px, 3.6vh, 30px); }
+.nav-bas .legende { font-size: clamp(9px, 1.3vh, 12px); letter-spacing: 0.1em; }
+
+.nav-bas[hidden] { display: none; }
+#nav-trafic-bloc.retard .valeur { color: var(--ambre); }
+.marqueur-voiture { width: 40px; height: 40px; }
+.marqueur-voiture svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(62, 130, 255, 0.8)); }
+.marqueur-voiture circle { fill: rgba(62, 130, 255, 0.25); stroke: #fff; stroke-width: 2; }
+.marqueur-voiture path { fill: #fff; }
+.mapboxgl-ctrl-attrib { opacity: 0.5; }
+
+#cockpit.navigation {
+  grid-template-columns: 1.55fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "haut haut" "carte centre" "carte gauche" "carte droite" "bas bas";
+}
+.navigation .carte { display: block; }
+.navigation .vitesse-val { font-size: clamp(56px, 17vh, 150px); }
+.navigation .vitesse { margin-top: 1vh; }
+.navigation .gauche { flex-direction: row; justify-content: space-around; width: 100%; gap: 2vw; }
+.navigation .gauche .legende { display: none; }
+.navigation .panneau-limite { width: clamp(56px, 13vh, 110px); border-width: clamp(6px, 1.5vh, 12px); font-size: clamp(22px, 5.4vh, 46px); }
+.navigation .regulateur, .navigation .batterie { margin-top: 0; font-size: clamp(20px, 4.4vh, 38px); }
+.navigation .droite { flex-direction: row; justify-content: space-around; width: 100%; gap: 2vw; }
+.navigation .jauge-puissance, .navigation .barre { display: none; }
+.navigation .puissance { margin-top: 0; font-size: clamp(20px, 4.4vh, 38px); }
+.navigation .conso { flex-direction: row; margin-top: 0; max-width: none; width: auto; gap: 1vw; }
+.navigation .bloc { padding: 0.6vh 1vw; }
+.navigation .bloc .valeur { font-size: clamp(16px, 3.4vh, 28px); }
+.navigation .bas { padding: 0.8vh 2vw; }
+.navigation .bas .info .valeur { font-size: clamp(16px, 3.4vh, 28px); }
+.navigation .vent-svg { width: clamp(34px, 6vh, 52px); height: clamp(34px, 6vh, 52px); }
+
 /* ---------- Portrait (téléphone tenu verticalement) ---------- */
 @media (orientation: portrait) {
   #cockpit {
@@ -193,4 +242,21 @@ button:active { transform: scale(0.97); }
   .vent { grid-column: span 2; }
   .actions { justify-content: flex-end; align-self: end; }
   .route { display: none; }
+
+  #cockpit.navigation {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "haut haut" "carte carte" "centre gauche" "droite droite" "bas bas";
+  }
+  .navigation .centre { width: min(100%, 24vh); }
+  .navigation .vitesse-val { font-size: min(14vw, 7vh); }
+  .navigation .gauche { flex-direction: column; gap: 0.6vh; justify-content: center; }
+  .navigation .panneau-limite { width: min(18vw, 9vh); border-width: min(2.4vw, 1.2vh); font-size: min(7vw, 3.6vh); }
+  .navigation .regulateur, .navigation .batterie { font-size: min(6.5vw, 3.2vh); }
+  .navigation .bloc small { display: inline; }
+  .navigation .bas .info:nth-child(-n+3) { display: none; } /* trajet, durée, énergie : place réservée à la carte */
+  .navigation .bas { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 1vh 2vw; }
+  .navigation .vent { grid-column: auto; }
+  .navigation .nav-bas { flex-wrap: wrap; gap: 2px 12px; padding: 6px 12px; }
+  .navigation .nav-bas .valeur { font-size: min(5.5vw, 2.8vh); }
 }

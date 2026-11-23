@@ -7,6 +7,16 @@ import { distanceM, bearingDeg } from '../lib/geo.js';
 const ACCELERATION_MAX = 1.5; // m/s²
 const PAS_S = 1; // une position par seconde, comme un vrai GPS
 const CAPACITE_KWH = 75; // capacité utile approximative d'une Model Y Grande Autonomie
+const NAV_APRES_S = 15; // la « destination est saisie dans la Tesla » après 15 s : la carte s'ouvre toute seule
+const KMH_MOYEN_NAV = 85; // vitesse moyenne pour estimer le temps restant
+
+// Itinéraire simulé de la Tesla : un point sur 5 suffit pour le tracé ; distance cumulée pour le « restant ».
+const TRACE_DEMO = ROUTE_DEMO.filter((_, i) => i % 5 === 0 || i === ROUTE_DEMO.length - 1).map(([lat, lon]) => ({ lat, lon }));
+const CUMUL_M = [0];
+for (let k = 1; k < ROUTE_DEMO.length; k++) {
+  CUMUL_M.push(CUMUL_M[k - 1] + distanceM({ lat: ROUTE_DEMO[k - 1][0], lon: ROUTE_DEMO[k - 1][1] }, { lat: ROUTE_DEMO[k][0], lon: ROUTE_DEMO[k][1] }));
+}
+const TOTAL_M = CUMUL_M[CUMUL_M.length - 1];
 
 /** Modèle simplifié de consommation d'une Model Y (kW). */
 export function puissanceModelY(vitesse, acceleration, ventDeFaceMs = 0) {
@@ -31,6 +41,8 @@ export class Simulation {
     let i = 0, dansSegment = 0, vitesse = 0, t = Date.now();
     let batterie = 82; // % au départ
     let derniereBatterie = -Infinity;
+    let derniereNav = -Infinity;
+    const debut = t;
     const tick = () => {
       if (i >= ROUTE_DEMO.length - 1) { i = 0; dansSegment = 0; } // boucle à la fin
       const [lat1, lon1, vCible] = ROUTE_DEMO[i];
@@ -73,6 +85,20 @@ export class Simulation {
       if (t - derniereBatterie >= 60000) {
         msg.batteryPct = Math.round(batterie); // comme la Tesla réglée à 1 envoi par minute
         derniereBatterie = t;
+      }
+      if (t - debut >= NAV_APRES_S * 1000 && t - derniereNav >= 60000) {
+        // comme la Tesla réglée à 1 envoi par minute pour les champs de navigation
+        const restantKm = (TOTAL_M - CUMUL_M[i] - dansSegment) / 1000;
+        Object.assign(msg, {
+          destinationNom: 'Auxerre',
+          destinationPos: TRACE_DEMO[TRACE_DEMO.length - 1],
+          trace: TRACE_DEMO,
+          kmArrivee: restantKm,
+          minutesArrivee: (restantKm / KMH_MOYEN_NAV) * 60,
+          retardTraficMin: 3,
+          batterieArriveePct: Math.round(batterie - ((restantKm * 0.17) / CAPACITE_KWH) * 100),
+        });
+        derniereNav = t;
       }
       onTesla(msg);
     };

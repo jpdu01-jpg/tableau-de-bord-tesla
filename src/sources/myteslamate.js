@@ -1,11 +1,12 @@
 // Connexion à la Tesla via MyTeslaMate (plan API, facturé à l'usage).
 // La clé API est saisie dans les Réglages et reste uniquement dans le stockage local du navigateur.
 //
-// Pour l'instant : TEST DE CONNEXION uniquement (pas encore de flux pendant la conduite) :
-//   1. liste des véhicules : GET /api/1/vehicles (≈ 1/300 de crédit), ne réveille pas la voiture ;
-//   2. si la voiture est éveillée : écoute du flux temps réel pendant 20 secondes, au format brut
-//      (tous les champs configurés sur la voiture), pour vérifier les données et mesurer le coût réel.
-import { messageAbonnementBrut, interpreterMessageBrut } from '../lib/teslaStream.js';
+// 1. TEST DE CONNEXION (Réglages) : liste des véhicules (≈ 1/300 de crédit, ne réveille pas la voiture),
+//    puis écoute du flux temps réel pendant 20 secondes si la voiture est éveillée.
+// 2. FLUX PENDANT LA CONDUITE (classe TeslaMyTeslaMate) : écoute au format brut des champs déjà configurés
+//    sur la voiture (docs/telemetrie/config-telemetrie.json). On n'ajoute aucun champ : le coût ne change pas.
+import { messageAbonnementBrut, interpreterMessageBrut, donneesTesla, devinerUniteRegulateur } from '../lib/teslaStream.js';
+import { navigationDepuisChamps } from '../lib/navigation.js';
 
 const API = 'https://api.myteslamate.com/api/1';
 const STREAMING = 'wss://streaming.myteslamate.com/streaming/';
@@ -64,4 +65,76 @@ export function testerFlux(vin, jeton = lireJetonMTM()) {
       resolve(resume);
     };
   });
+}
+
+/**
+ * Flux Tesla pendant la conduite. Même interface que les autres sources Tesla (voir tesla.js) :
+ * start(onData) → onData({ powerKw?, cruiseKmh?, batteryPct?, destinationNom?, trace?, minutesArrivee?, … , t }).
+ * Ne réveille jamais la voiture : en roulant, elle est forcément éveillée. Reconnexion automatique en cas de coupure.
+ */
+export class TeslaMyTeslaMate {
+  etat = 'connexion';
+  vitesseGpsKmh = null; // fournie par l'application, sert à deviner l'unité du régulateur
+  #ws = null;
+  #arret = false;
+  #memoire = {};
+  #unite = localStorage.getItem('tesla-unite-regulateur') || 'kmh';
+
+  async start(onData) {
+    this.#arret = false;
+    let vin;
+    try {
+      vin = (await listerVehicules())[0]?.vin;
+      if (!vin) throw new Error('aucun véhicule');
+    } catch {
+      this.etat = 'erreur';
+      if (!this.#arret) this.#relance = setTimeout(() => this.start(onData), 30000);
+      return;
+    }
+    this.#connecter(vin, onData, 0);
+  }
+
+  #relance = null;
+
+  #connecter(vin, onData, essais) {
+    if (this.#arret) return;
+    this.etat = 'connexion';
+    const ws = (this.#ws = new WebSocket(STREAMING));
+    ws.onopen = () => ws.send(messageAbonnementBrut(lireJetonMTM(), vin));
+    ws.onmessage = (ev) => {
+      const m = interpreterMessageBrut(ev.data, vin);
+      if (m.type === 'erreur') this.etat = 'erreur';
+      if (m.type !== 'donnees') return;
+      this.etat = 'ok';
+      essais = 0;
+      if ('CruiseSetSpeed' in m.champs) this.#verifierUnite(m.champs.CruiseSetSpeed);
+      onData({
+        ...donneesTesla(m.champs, this.#memoire, this.#unite),
+        ...navigationDepuisChamps(m.champs),
+        t: Date.now(), // horloge du téléphone, comme le GPS
+      });
+    };
+    ws.onclose = () => {
+      if (this.#arret) return;
+      this.etat = 'erreur';
+      const delai = Math.min(60000, 2000 * 2 ** essais); // 2 s, 4 s, 8 s… jusqu'à 1 min
+      this.#relance = setTimeout(() => this.#connecter(vin, onData, essais + 1), delai);
+    };
+  }
+
+  // L'unité du régulateur (km/h ou mph) est devinée une fois, puis mémorisée.
+  #verifierUnite(consigne) {
+    if (localStorage.getItem('tesla-unite-regulateur')) return;
+    const u = devinerUniteRegulateur(consigne, this.vitesseGpsKmh);
+    if (u) {
+      this.#unite = u;
+      localStorage.setItem('tesla-unite-regulateur', u);
+    }
+  }
+
+  stop() {
+    this.#arret = true;
+    clearTimeout(this.#relance);
+    this.#ws?.close();
+  }
 }

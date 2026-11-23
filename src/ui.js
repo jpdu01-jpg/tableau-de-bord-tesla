@@ -1,4 +1,5 @@
 // Affichage du tableau de bord. Aucun calcul métier ici : on reçoit un état et on l'affiche.
+import { ouvrirCarte, majCarte, redimensionnerCarte } from './carte.js';
 
 const VITESSE_MAX = 200; // km/h, fin de l'échelle du compteur
 const PUISSANCE_MIN = -60; // kW, récupération maximale affichée
@@ -141,6 +142,20 @@ export function afficher(e) {
   }
   $('temperature').textContent = nombre(e.temperature);
 
+  // Navigation (données de l'itinéraire Tesla)
+  const n = e.navigation;
+  $('nav-dest').textContent = n.destinationNom || (n.active ? 'Itinéraire en cours' : 'Aucune destination');
+  $('nav-heure').textContent = n.heureArrivee ? n.heureArrivee.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  $('nav-km').textContent = nombre(n.kmArrivee, n.kmArrivee != null && n.kmArrivee < 10 ? 1 : 0);
+  $('nav-duree').textContent = n.minutesArrivee == null ? '--'
+    : n.minutesArrivee < 60 ? `${Math.round(n.minutesArrivee)} min`
+    : `${Math.floor(n.minutesArrivee / 60)} h ${String(Math.round(n.minutesArrivee % 60)).padStart(2, '0')}`;
+  $('nav-trafic').textContent = n.retardTraficMin == null ? '--' : `+${nombre(n.retardTraficMin)}`;
+  $('nav-trafic-bloc').classList.toggle('retard', (n.retardTraficMin ?? 0) >= 5);
+  $('nav-batterie').textContent = nombre(n.batterieArriveePct);
+  $('nav-bas').hidden = !n.active;
+  if (modeNavigation) majCarte(e.carte);
+
   // Heure et pastilles d'état
   $('heure').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   $('st-osm').textContent = e.sourceLimite === 'Mapbox' ? 'Limites · Mapbox' : 'Limites · OSM';
@@ -148,3 +163,15 @@ export function afficher(e) {
     $(id).className = `pastille ${etat}`;
   }
 }
+
+let modeNavigation = false;
+
+/** Passe en écran partagé (carte + compteurs compacts) ou revient au compteur seul. */
+export function afficherModeNavigation(ouvert, jetonMapbox, position) {
+  modeNavigation = ouvert;
+  $('cockpit').classList.toggle('navigation', ouvert);
+  if (ouvert) {
+    ouvrirCarte($('carte'), jetonMapbox, $('carte-message'), position).then(redimensionnerCarte);
+  }
+}
+addEventListener('resize', redimensionnerCarte); // rotation du téléphone
