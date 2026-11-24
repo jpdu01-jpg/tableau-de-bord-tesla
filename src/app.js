@@ -100,6 +100,7 @@ function surTesla(d) {
     if (!canRecente()) trip.addPower(d.powerKw, d.t); // le boîtier, bien plus précis, s'en charge
   }
   if ('cruiseKmh' in d) etat.cruiseKmh = d.cruiseKmh;
+  if ('autopilotActif' in d) etat.autopilotActif = d.autopilotActif; // mode démo seulement (en réel : boîtier Teslogic)
   if (d.batteryPct != null) {
     etat.batteryPct = d.batteryPct;
     etat.batteryT = d.t;
@@ -153,6 +154,7 @@ function calculerEcran() {
     roadRef: etat.limite?.ref,
     roadName: etat.limite?.name,
     cruiseKmh: 'cruiseKmh' in can ? can.cruiseKmh : teslaRecente ? etat.cruiseKmh : null,
+    autopilotActif: can.autopilotActif ?? (teslaRecente && etat.autopilotActif === true),
     powerKw,
     instantKwh100: instantKwhPer100(powerKw, speedKmh),
     batteryPct: can.batteryPct ?? (horlogeTesla - etat.batteryT < 10 * 60000 ? etat.batteryPct : null), // masqué si plus vieux que 10 min

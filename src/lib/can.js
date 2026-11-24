@@ -75,7 +75,8 @@ export function donneesTeslogic(v) {
   if (v.vitesseKmh != null) d.speedKmh = v.vitesseKmh;
   if (v.batteriePct != null) d.batteryPct = Math.round(v.batteriePct);
   if (v.etatAutopilot != null) {
-    d.cruiseKmh = AUTOPILOT_ACTIF.includes(v.etatAutopilot) && v.consigneKmh > 0 ? Math.round(v.consigneKmh) : null;
+    d.autopilotActif = AUTOPILOT_ACTIF.includes(v.etatAutopilot); // volant bleu à l'écran
+    d.cruiseKmh = d.autopilotActif && v.consigneKmh > 0 ? Math.round(v.consigneKmh) : null;
   }
   if ('limiteKmh' in v) d.limitKmh = v.limiteKmh;
   return d;

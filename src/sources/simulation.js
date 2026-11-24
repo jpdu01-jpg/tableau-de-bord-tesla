@@ -80,6 +80,7 @@ export class Simulation {
       const msg = {
         powerKw: puissance,
         cruiseKmh: kmh > 70 ? Math.round(kmh / 5) * 5 : null, // régulateur engagé au-dessus de 70 km/h
+        autopilotActif: kmh > 70, // volant bleu affiché en même temps
         t,
       };
       if (t - derniereBatterie >= 60000) {

@@ -93,6 +93,7 @@ export function afficher(e) {
 
   // Régulateur
   $('regul-val').textContent = nombre(e.cruiseKmh);
+  $('volant').toggleAttribute('hidden', !e.autopilotActif); // dessin SVG : la propriété .hidden n'existe pas
   $('regulateur').classList.toggle('actif', e.cruiseKmh != null);
 
   // Batterie

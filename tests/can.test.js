@@ -45,10 +45,17 @@ test('CAN : vitesse, batterie, régulateur, limitation (capture réelle)', () =>
   egal(d.batteryPct, 74);
   egal(d.limitKmh, 50);
   egal(d.cruiseKmh, null); // Autopilot pas enclenché : la consigne suit la vitesse, on ne l'affiche pas
+  egal(d.autopilotActif, false);
 });
 test('CAN : consigne affichée quand l\'Autopilot est actif', () => {
   const v = decoderPaquet(paquet(REGULATEUR, '99 13 03 0a ff 80 b0 44 f1 0b'));
   egal(donneesTeslogic(v).cruiseKmh, 36);
+  egal(donneesTeslogic(v).autopilotActif, true);
+});
+test('CAN : Autopilot actif pour les états 3, 4, 5 seulement', () => {
+  const etat = (n) => donneesTeslogic(decoderPaquet(paquet(`99 13 0${n} 0a 00 00 00 00 00 00`))).autopilotActif;
+  egal([0, 1, 2, 3, 4, 5, 8].map(etat).join(), 'false,false,false,true,true,true,false');
+  vrai(!('autopilotActif' in donneesTeslogic(decoderPaquet(paquet(VITESSE))))); // pas d'information → pas de valeur
 });
 test('CAN : limitation « aucune » (31) → null, « inconnue » (0) → ignorée', () => {
   egal(decoderPaquet(paquet('99 13 01 1f 00 00 00 00 00 00')).limiteKmh, null);

@@ -76,6 +76,11 @@ small { font-size: 0.42em; color: var(--doux); margin-left: 0.35em; font-weight:
 }
 .vitesse-val.depasse { color: var(--rouge); text-shadow: 0 0 40px rgba(255, 77, 94, 0.4); }
 .vitesse-unite { font-size: clamp(12px, 2.4vh, 20px); color: var(--doux); letter-spacing: 0.3em; text-transform: uppercase; }
+/* Volant bleu de l'Autopilot : sous la vitesse, en position absolue pour ne rien décaler quand il apparaît */
+.volant { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 1vh;
+  width: clamp(22px, 4.5vh, 40px); height: clamp(22px, 4.5vh, 40px); color: var(--bleu-tesla);
+  filter: drop-shadow(0 0 8px rgba(62, 130, 255, 0.6)); }
+.volant[hidden] { display: none; }
 
 /* ---------- Limitation et régulateur ---------- */
 .panneau-limite {
