@@ -4,7 +4,7 @@ import { relativeWind } from './lib/wind.js';
 import { startGps } from './sources/gps.js';
 import { SpeedLimitService } from './sources/speedLimit.js';
 import { MapboxLimitService, lireJeton, enregistrerJeton, lireCompteur } from './sources/mapboxLimit.js';
-import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux, TeslaMyTeslaMate } from './sources/myteslamate.js';
+import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux, TeslaMyTeslaMate, FLUX_PARTAGE_DISPONIBLE } from './sources/myteslamate.js';
 import { navigationActive, basculeAuto, heureArrivee } from './lib/navigation.js';
 import { SIGNAUX_PAR_CREDIT, texteValeur } from './lib/teslaStream.js';
 import { WeatherService } from './sources/weather.js';
@@ -14,6 +14,9 @@ import { construire, afficher, afficherModeNavigation } from './ui.js';
 
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
+// Flux Tesla : coupé par défaut (voir myteslamate.js). « ?flux=1 » l'active pour un essai, À CONDITION d'avoir
+// désactivé le streaming dans TeslaMate, sinon les deux se volent le flux.
+const FLUX_TESLA = FLUX_PARTAGE_DISPONIBLE || params.get('flux') === '1';
 
 let mode = null; // 'reel' | 'demo'
 let trip = null;
@@ -175,7 +178,7 @@ async function demarrer(nouveauMode, reprendre) {
     arreter = () => sim.stop();
   } else {
     simulation = null;
-    tesla = lireJetonMTM() ? new TeslaMyTeslaMate() : new TeslaNonConnectee();
+    tesla = lireJetonMTM() && FLUX_TESLA ? new TeslaMyTeslaMate() : new TeslaNonConnectee(); // voir myteslamate.js
     tesla.start(surTesla);
     const stopGps = startGps(surPosition, (err) => {
       $('message').textContent = err.message;
@@ -219,7 +222,9 @@ function preparerAccueil() {
   $('info-mapbox').textContent = lireJeton()
     ? `Clé enregistrée · ${ceMois.toLocaleString('fr-FR')} requêtes ce mois-ci (gratuit jusqu'à 100 000)`
     : 'Aucune clé : les limitations viennent d\'OpenStreetMap (moins fiable).';
-  $('info-mtm').textContent = lireJetonMTM() ? 'Clé enregistrée.' : 'Aucune clé : données Tesla indisponibles hors démo.';
+  $('info-mtm').textContent = !lireJetonMTM() ? 'Aucune clé : données Tesla indisponibles hors démo.'
+    : FLUX_TESLA ? 'Clé enregistrée.' + (FLUX_PARTAGE_DISPONIBLE ? '' : ' Mode essai du flux (?flux=1) : streaming TeslaMate désactivé ?')
+    : 'Clé enregistrée. Données en conduite en pause : le flux MyTeslaMate est déjà utilisé par TeslaMate.';
   $('btn-test-tesla').disabled = !lireJetonMTM();
 }
 
@@ -235,6 +240,9 @@ async function testerTesla() {
     if (!vehicules.length) return ecrire('Aucun véhicule sur ce compte.');
     vehicules.forEach((v) => ecrire(`• ${v.nom} — VIN ${v.vin} — ${v.etat === 'online' ? 'éveillée' : v.etat === 'asleep' ? 'endormie' : v.etat}`));
     const v = vehicules[0];
+    if (!FLUX_TESLA) {
+      return ecrire('\nFlux temps réel non testé : le serveur MyTeslaMate ne l\'envoie qu\'à un seul abonné,\net ton TeslaMate l\'utilise déjà. En attente d\'une évolution chez MyTeslaMate.');
+    }
     if (v.etat !== 'online') {
       return ecrire('\nLa voiture dort : flux non testé (la réveiller coûte 20 crédits).\nRelance le test voiture éveillée, par exemple après l\'avoir ouverte avec l\'app Tesla.');
     }

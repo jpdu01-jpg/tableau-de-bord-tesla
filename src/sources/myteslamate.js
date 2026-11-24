@@ -13,6 +13,12 @@ const STREAMING = 'wss://streaming.myteslamate.com/streaming/';
 const CLE = 'myteslamate-jeton';
 const DUREE_TEST_MS = 20000;
 
+// ⚠️ Le serveur de flux MyTeslaMate n'envoie les données d'une voiture qu'à UN SEUL abonné : le dernier connecté
+// (voir github.com/MyTeslaMate/websocket, index.js : tags[VIN] = connexion). Le TeslaMate hébergé du propriétaire
+// est déjà abonné : en s'abonnant, l'app lui volerait le flux (et pourrait lui envoyer le format brut, qu'il ne
+// comprend pas), puis le perdrait à son tour. Coupé tant que MyTeslaMate n'accepte pas plusieurs abonnés.
+export const FLUX_PARTAGE_DISPONIBLE = false;
+
 export const lireJetonMTM = () => localStorage.getItem(CLE) || '';
 export const enregistrerJetonMTM = (jeton) => (jeton ? localStorage.setItem(CLE, jeton.trim()) : localStorage.removeItem(CLE));
 
