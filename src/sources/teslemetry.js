@@ -8,8 +8,15 @@ import { interpreterTeslemetry } from '../lib/teslemetry.js';
 import { donneesTesla, devinerUniteRegulateur } from '../lib/teslaStream.js';
 import { navigationDepuisChamps } from '../lib/navigation.js';
 
-const API = 'https://api.teslemetry.com';
 const CLE = 'teslemetry-jeton';
+const CLE_RELAIS = 'teslemetry-relais';
+
+// Teslemetry n'autorise pas les pages web : on passe par un relais (Cloudflare Worker, voir relais/LISEZMOI.md)
+// dont l'adresse est saisie dans les Réglages. Sans relais, appel direct (bloqué par le navigateur à ce jour).
+export const lireRelaisTeslemetry = () => localStorage.getItem(CLE_RELAIS) || '';
+export const enregistrerRelaisTeslemetry = (adresse) =>
+  adresse ? localStorage.setItem(CLE_RELAIS, adresse.trim().replace(/\/+$/, '')) : localStorage.removeItem(CLE_RELAIS);
+const api = () => lireRelaisTeslemetry() || 'https://api.teslemetry.com';
 const DUREE_TEST_MS = 15000;
 
 export const lireJetonTeslemetry = () => localStorage.getItem(CLE) || '';
@@ -18,7 +25,7 @@ export const enregistrerJetonTeslemetry = (jeton) => (jeton ? localStorage.setIt
 // Le jeton passe dans l'adresse (« ?token= ») : c'est la méthode prévue par Teslemetry pour les navigateurs,
 // le flux EventSource ne pouvant pas envoyer d'en-tête d'autorisation.
 const url = (chemin, params = {}) =>
-  `${API}${chemin}?${new URLSearchParams({ ...params, token: lireJetonTeslemetry() })}`;
+  `${api()}${chemin}?${new URLSearchParams({ ...params, token: lireJetonTeslemetry() })}`;
 
 async function lireJson(chemin) {
   let rep;
@@ -27,9 +34,10 @@ async function lireJson(chemin) {
   } catch {
     // Le navigateur ne dit pas pourquoi : pas de réseau, jeton refusé (réponse sans autorisation pour les pages web),
     // ou Teslemetry qui n'accepte pas les pages web.
-    throw new Error('Teslemetry injoignable depuis ce navigateur : vérifie le jeton (copié en entier ?) et le réseau');
+    throw new Error(lireRelaisTeslemetry() ? 'Relais injoignable : vérifie son adresse et que le Worker est déployé' : 'Teslemetry bloque les pages web : enregistre l\'adresse du relais Cloudflare (voir relais/LISEZMOI.md)');
   }
   if (rep.status === 401) throw new Error('Jeton Teslemetry refusé : vérifie-le dans la console Teslemetry');
+  if (rep.status === 403) throw new Error('Relais : cette page n\'est pas autorisée (voir ORIGINES dans relais/teslemetry-worker.js)');
   if (!rep.ok) throw new Error(`Teslemetry a répondu ${rep.status}`);
   return rep.json();
 }

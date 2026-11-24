@@ -10,7 +10,7 @@ import { SIGNAUX_PAR_CREDIT, texteValeur, resumerConfigTelemetrie } from './lib/
 import { WeatherService } from './sources/weather.js';
 import { TeslaNonConnectee } from './sources/tesla.js';
 import { Teslogic, bluetoothDisponible } from './sources/teslogic.js';
-import { lireJetonTeslemetry, enregistrerJetonTeslemetry, vehiculesTeslemetry, configTeslemetry, testerFluxTeslemetry, TeslaTeslemetry } from './sources/teslemetry.js';
+import { lireJetonTeslemetry, enregistrerJetonTeslemetry, lireRelaisTeslemetry, enregistrerRelaisTeslemetry, vehiculesTeslemetry, configTeslemetry, testerFluxTeslemetry, TeslaTeslemetry } from './sources/teslemetry.js';
 import { resumerConfigTeslemetry } from './lib/teslemetry.js';
 import { Simulation } from './sources/simulation.js';
 import { construire, afficher, afficherModeNavigation } from './ui.js';
@@ -265,8 +265,9 @@ function preparerAccueil() {
     : 'Clé enregistrée. Données en conduite en pause : le flux MyTeslaMate est déjà utilisé par TeslaMate.';
   $('btn-test-tesla').disabled = !lireJetonMTM();
   $('info-teslemetry').textContent = lireJetonTeslemetry()
-    ? 'Jeton enregistré : données de la voiture via Teslemetry (prioritaire sur MyTeslaMate).'
+    ? `Jeton enregistré : données de la voiture via Teslemetry (prioritaire sur MyTeslaMate). ${lireRelaisTeslemetry() ? 'Relais enregistré.' : 'Relais à enregistrer (voir relais/LISEZMOI.md).'}`
     : 'Aucun jeton. À créer dans la console Teslemetry (Applications and API → Access Tokens).';
+  $('relais-teslemetry').value = lireRelaisTeslemetry(); // pas un secret : affiché pour vérification
   $('btn-test-teslemetry').disabled = !lireJetonTeslemetry();
 }
 
@@ -296,7 +297,7 @@ async function testerTeslemetry() {
     const r = await testerFluxTeslemetry(v.vin);
     if (!r.ouvert) {
       ecrire('Flux impossible à ouvrir depuis ce navigateur.');
-      return ecrire('Si le jeton est bon, Teslemetry n\'autorise peut-être pas les pages web : à signaler à son support.');
+      return ecrire(lireRelaisTeslemetry() ? 'Vérifie l\'adresse du relais et que le Worker est bien déployé.' : 'Enregistre l\'adresse du relais Cloudflare (Teslemetry bloque les pages web).');
     }
     ecrire(`Flux ouvert ✓ · ${r.mises} mise(s) à jour${r.etat ? ` · voiture ${r.etat}` : ''}`);
     const noms = Object.keys(r.champs).sort();
@@ -396,6 +397,10 @@ $('btn-jeton-mtm').onclick = () => {
 };
 $('btn-test-tesla').onclick = testerTesla;
 $('btn-test-teslemetry').onclick = testerTeslemetry;
+$('btn-relais-teslemetry').onclick = () => {
+  enregistrerRelaisTeslemetry($('relais-teslemetry').value);
+  preparerAccueil();
+};
 $('btn-jeton-teslemetry').onclick = () => {
   enregistrerJetonTeslemetry($('jeton-teslemetry').value);
   $('jeton-teslemetry').value = '';
