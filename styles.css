@@ -15,6 +15,8 @@
   font-variant-numeric: tabular-nums;
 }
 * { box-sizing: border-box; }
+/* iOS grossit le texte en paysage (Bluefy, Safari) : on garde la taille prévue, sinon les pavés débordent. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { margin: 0; height: 100%; background: var(--fond); color: var(--texte); overflow: hidden; -webkit-user-select: none; user-select: none; }
 body {
   background:
@@ -219,7 +221,7 @@ button:active { transform: scale(0.97); }
 }
 .navigation .haut { display: none; }
 .navigation .carte { display: block; }
-.navigation .vitesse-val { font-size: clamp(56px, 17vh, 150px); }
+.navigation .vitesse-val { font-size: clamp(40px, 17vh, 150px); }
 .navigation .vitesse { margin-top: 1vh; }
 .navigation .gauche { flex-direction: row; justify-content: space-around; width: 100%; gap: 2vw; }
 .navigation .gauche .legende { display: none; }
