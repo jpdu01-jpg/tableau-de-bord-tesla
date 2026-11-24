@@ -16,7 +16,9 @@
 }
 * { box-sizing: border-box; }
 /* iOS grossit le texte en paysage (Bluefy, Safari) : on garde la taille prévue, sinon les pavés débordent. */
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; color-scheme: dark; }
+/* Plein écran (Bluefy, iOS) : le fond autour de la page est blanc par défaut en paysage, on le met à la couleur du tableau. */
+:fullscreen, ::backdrop { background: #05070a; }
 html, body { margin: 0; height: 100%; background: var(--fond); color: var(--texte); overflow: hidden; -webkit-user-select: none; user-select: none; }
 body {
   background:
