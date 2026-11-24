@@ -86,7 +86,7 @@ export class TeslaMyTeslaMate {
   #memoire = {};
   #unite = localStorage.getItem('tesla-unite-regulateur') || 'kmh';
   // Diagnostic affiché en touchant la pastille « Tesla » : ce qui s'est passé sur la connexion.
-  diag = { vin: null, connexions: 0, ouverte: false, messages: 0, mises: 0, signaux: 0, dernierMessage: 0, derniereMise: 0, journal: [] };
+  diag = { vin: null, connexions: 0, ouverte: false, messages: 0, mises: 0, signaux: 0, dernierMessage: 0, derniereMise: 0, journal: [], champs: {} };
 
   #noter(texte) {
     const heure = new Date().toLocaleTimeString('fr-FR');
@@ -138,6 +138,12 @@ export class TeslaMyTeslaMate {
       if (!this.diag.mises) this.#noter('premières données reçues');
       this.diag.mises++;
       this.diag.signaux += m.signaux;
+      for (const [nom, valeur] of Object.entries(m.champs)) {
+        // nombre de réceptions et dernière valeur de chaque champ (positions et tracé non affichés)
+        const c = (this.diag.champs[nom] ??= { n: 0, valeur: null });
+        c.n++;
+        c.valeur = typeof valeur === 'number' ? Math.round(valeur * 10) / 10 : valeur == null ? '∅' : typeof valeur === 'string' && valeur.length <= 12 ? valeur : '…';
+      }
       this.diag.derniereMise = Date.now();
       this.etat = 'ok';
       essais = 0;

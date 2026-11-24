@@ -170,6 +170,7 @@ export function afficher(e) {
         `Connexion ${d.ouverte ? 'ouverte' : 'fermée'} · ${d.connexions} tentative(s)`,
         `Messages : ${d.messages} (dernier ${ilya(d.dernierMessage)})`,
         `Données : ${d.mises} mises à jour, ${d.signaux} signaux (dernière ${ilya(d.derniereMise)})`,
+        `Champs : ${Object.entries(d.champs ?? {}).map(([nom, c]) => `${nom}×${c.n}=${c.valeur}`).join(', ') || 'aucun'}`,
         '', ...d.journal,
       ].join('\n');
   }
