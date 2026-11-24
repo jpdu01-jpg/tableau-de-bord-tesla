@@ -16,7 +16,7 @@ Le propriétaire du projet apprend le développement : explique les choix en fra
   - OpenStreetMap (Overpass) → limitation de vitesse en secours (pas de clé, quota atteint ou Mapbox injoignable) ;
   - Open-Meteo → vent ;
   - Tesla (via MyTeslaMate, flux brut « subscribe_all » des champs configurés dans `docs/telemetrie/config-telemetrie.json`) → puissance (champ Power ajouté par MyTeslaMate), niveau de batterie (BatteryLevel / Soc) et navigation (DestinationName, DestinationLocation, RouteLine, MinutesToArrival, MilesToArrival, RouteTrafficMinutesDelay, ExpectedEnergyPercentAtTripArrival).
-  - Boîtier Teslogic V2 (`src/sources/teslogic.js`, décodage `src/lib/can.js` ; Bluetooth, trames CAN, gratuit) → **prioritaire** pour puissance, vitesse, batterie, régulateur et limitation de vitesse lue par la voiture (Mapbox n'est alors plus interrogé). Safari iPhone n'a pas le Bluetooth web : utiliser le navigateur Bluefy. Connexion au toucher de « Démarrer le trajet » ou de la pastille « Voiture ».
+  - Boîtier Teslogic V2 (`src/sources/teslogic.js`, décodage `src/lib/can.js` ; Bluetooth, trames CAN, gratuit) → **prioritaire** pour puissance, vitesse, batterie, régulateur et limitation de vitesse lue par la voiture (Mapbox reste interrogé pour le nom de la rue). Safari iPhone n'a pas le Bluetooth web : utiliser le navigateur Bluefy. Connexion au toucher de « Démarrer le trajet » ou de la pastille « Voiture ».
 - Écran de navigation : toucher l'écran bascule compteur seul ↔ écran partagé carte + compteurs ; une destination saisie dans la Tesla l'ouvre automatiquement, sa suppression le ferme.
 - Le streaming Tesla est facturé par signal : ne jamais ajouter de champ Tesla sans le signaler et estimer son coût.
 

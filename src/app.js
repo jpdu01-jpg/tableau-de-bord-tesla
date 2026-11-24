@@ -69,7 +69,6 @@ function surPosition(p) {
 
 // Mapbox si disponible ; OpenStreetMap si pas de clé, quota atteint, clé refusée ou Mapbox injoignable.
 function choisirLimite(p) {
-  if (canRecente() && etat.can.limitKmh != null) return; // limitation lue par la voiture : pas de requête Mapbox
   if (mapbox.disponible) {
     const r = mapbox.update(p);
     if (r || mapbox.etat !== 'erreur') {
@@ -150,8 +149,9 @@ function calculerEcran() {
   return {
     speedKmh,
     limitKmh: limiteVoiture ? can.limitKmh : etat.limite?.limit ?? null,
-    roadRef: limiteVoiture ? null : etat.limite?.ref, // le nom de la route vient de Mapbox / OSM, plus interrogés
-    roadName: limiteVoiture ? null : etat.limite?.name,
+    // Mapbox (ou OSM) reste interrogé pour le nom de la rue, même quand la limitation vient de la voiture
+    roadRef: etat.limite?.ref,
+    roadName: etat.limite?.name,
     cruiseKmh: 'cruiseKmh' in can ? can.cruiseKmh : teslaRecente ? etat.cruiseKmh : null,
     powerKw,
     instantKwh100: instantKwhPer100(powerKw, speedKmh),
