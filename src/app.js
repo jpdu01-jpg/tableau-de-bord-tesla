@@ -10,6 +10,8 @@ import { SIGNAUX_PAR_CREDIT, texteValeur, resumerConfigTelemetrie } from './lib/
 import { WeatherService } from './sources/weather.js';
 import { TeslaNonConnectee } from './sources/tesla.js';
 import { Teslogic, bluetoothDisponible } from './sources/teslogic.js';
+import { lireJetonTeslemetry, enregistrerJetonTeslemetry, vehiculesTeslemetry, configTeslemetry, testerFluxTeslemetry, TeslaTeslemetry } from './sources/teslemetry.js';
+import { resumerConfigTeslemetry } from './lib/teslemetry.js';
 import { Simulation } from './sources/simulation.js';
 import { construire, afficher, afficherModeNavigation } from './ui.js';
 
@@ -211,7 +213,9 @@ async function demarrer(nouveauMode, reprendre) {
     arreter = () => sim.stop();
   } else {
     simulation = null;
-    tesla = lireJetonMTM() && FLUX_TESLA ? new TeslaMyTeslaMate() : new TeslaNonConnectee(); // voir myteslamate.js
+    // Teslemetry en priorité (pas de conflit avec TeslaMate) ; sinon MyTeslaMate en mode essai (voir myteslamate.js)
+    tesla = lireJetonTeslemetry() ? new TeslaTeslemetry()
+      : lireJetonMTM() && FLUX_TESLA ? new TeslaMyTeslaMate() : new TeslaNonConnectee();
     tesla.start(surTesla);
     const stopGps = startGps(surPosition, (err) => {
       $('message').textContent = err.message;
@@ -260,6 +264,49 @@ function preparerAccueil() {
     : FLUX_TESLA ? 'Clé enregistrée.' + (FLUX_PARTAGE_DISPONIBLE ? '' : ' Mode essai du flux (?flux=1) : streaming TeslaMate désactivé ?')
     : 'Clé enregistrée. Données en conduite en pause : le flux MyTeslaMate est déjà utilisé par TeslaMate.';
   $('btn-test-tesla').disabled = !lireJetonMTM();
+  $('info-teslemetry').textContent = lireJetonTeslemetry()
+    ? 'Jeton enregistré : données de la voiture via Teslemetry (prioritaire sur MyTeslaMate).'
+    : 'Aucun jeton. À créer dans la console Teslemetry (Applications and API → Access Tokens).';
+  $('btn-test-teslemetry').disabled = !lireJetonTeslemetry();
+}
+
+// Test Teslemetry : véhicules, configuration de streaming, puis 15 s d'écoute du flux (tout est gratuit).
+async function testerTeslemetry() {
+  const sortie = $('resultat-test');
+  const ecrire = (ligne) => { sortie.hidden = false; sortie.textContent += ligne + '\n'; };
+  sortie.textContent = '';
+  $('btn-test-teslemetry').disabled = true;
+  try {
+    ecrire('Liste des véhicules…');
+    const vehicules = await vehiculesTeslemetry();
+    if (!vehicules.length) return ecrire('Aucun véhicule sur ce compte Teslemetry.');
+    vehicules.forEach((v) => ecrire(`• ${v.nom} — VIN …${v.vin.slice(-4)} — abonnement ${v.plan ?? 'aucun'}`));
+    const v = vehicules[0];
+    try {
+      const c = resumerConfigTeslemetry(await configTeslemetry(v.vin));
+      if (!c) ecrire('\nStreaming : aucun champ configuré dans la console Teslemetry.');
+      else {
+        ecrire(`\nStreaming : ${c.nbChamps} champs configurés${c.allocationPct != null ? ` (${Math.round(c.allocationPct)} % de l'allocation)` : ''}`);
+        ecrire(c.manquants.length ? `Champs à ajouter dans la console : ${c.manquants.join(', ')}` : 'Tous les champs du tableau de bord sont configurés ✓');
+      }
+    } catch (e) {
+      ecrire(`\nConfiguration de streaming illisible : ${e.message}`);
+    }
+    ecrire('\nÉcoute du flux pendant 15 secondes…');
+    const r = await testerFluxTeslemetry(v.vin);
+    if (!r.ouvert) {
+      ecrire('Flux impossible à ouvrir depuis ce navigateur.');
+      return ecrire('Si le jeton est bon, Teslemetry n\'autorise peut-être pas les pages web : à signaler à son support.');
+    }
+    ecrire(`Flux ouvert ✓ · ${r.mises} mise(s) à jour${r.etat ? ` · voiture ${r.etat}` : ''}`);
+    const noms = Object.keys(r.champs).sort();
+    noms.forEach((n) => ecrire(`  ${n} = ${texteValeur(r.champs[n])}`));
+    if (!noms.length) ecrire('Aucune valeur reçue : normal si la voiture dort ou ne roule pas.');
+  } catch (e) {
+    ecrire(`Échec : ${e.message}`);
+  } finally {
+    $('btn-test-teslemetry').disabled = !lireJetonTeslemetry();
+  }
 }
 
 // Test de connexion Tesla : liste des véhicules, puis 20 s de flux temps réel si la voiture est éveillée.
@@ -348,6 +395,12 @@ $('btn-jeton-mtm').onclick = () => {
   preparerAccueil();
 };
 $('btn-test-tesla').onclick = testerTesla;
+$('btn-test-teslemetry').onclick = testerTeslemetry;
+$('btn-jeton-teslemetry').onclick = () => {
+  enregistrerJetonTeslemetry($('jeton-teslemetry').value);
+  $('jeton-teslemetry').value = '';
+  preparerAccueil();
+};
 $('btn-jeton').onclick = () => {
   enregistrerJeton($('jeton-mapbox').value);
   $('jeton-mapbox').value = '';

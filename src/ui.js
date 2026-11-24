@@ -172,7 +172,7 @@ export function afficher(e) {
     diag.textContent = lignesTeslogic(e.diagTeslogic).join('\n') + (d.connexions == null
       ? `Flux Tesla : ${d.etat}${d.etat === 'simulation' ? ' (mode démo)' : ' (pas de clé MyTeslaMate, ou flux coupé : ajouter ?flux=1)'}`
       : [
-        `Flux Tesla : ${d.etat} · véhicule ${d.vin ?? '?'}`,
+        `Flux Tesla (${d.source ?? 'MyTeslaMate'}) : ${d.etat} · véhicule ${d.vin ?? '?'}`,
         `Connexion ${d.ouverte ? 'ouverte' : 'fermée'} · ${d.connexions} tentative(s)`,
         `Messages : ${d.messages} (dernier ${ilya(d.dernierMessage)})`,
         `Données : ${d.mises} mises à jour, ${d.signaux} signaux (dernière ${ilya(d.derniereMise)})`,
