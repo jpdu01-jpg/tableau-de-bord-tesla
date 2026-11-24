@@ -150,8 +150,9 @@ export class TeslaMyTeslaMate {
       this.diag.signaux += m.signaux;
       for (const [nom, valeur] of Object.entries(m.champs)) {
         // nombre de réceptions et dernière valeur de chaque champ (positions et tracé non affichés)
-        const c = (this.diag.champs[nom] ??= { n: 0, valeur: null });
+        const c = (this.diag.champs[nom] ??= { n: 0, valeur: null, premier: Date.now() });
         c.n++;
+        c.intervalleS = Math.round((Date.now() - c.premier) / 1000 / (c.n - 1)); // intervalle moyen entre deux réceptions
         c.valeur = typeof valeur === 'number' ? Math.round(valeur * 10) / 10 : valeur == null ? '∅' : typeof valeur === 'string' && valeur.length <= 12 ? valeur : '…';
       }
       this.diag.derniereMise = Date.now();

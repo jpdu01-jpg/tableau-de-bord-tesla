@@ -3,7 +3,10 @@
 import { distanceM } from './geo.js';
 
 const PRECISION_MAX_M = 35; // on ignore les positions GPS moins précises que ça
-const TROU_MAX_S = 30; // au-delà, on n'intègre pas la puissance (coupure de données)
+// La voiture n'envoie la puissance que quand elle change : entre deux messages, elle garde la dernière valeur.
+// Les messages peuvent donc être espacés de plus d'une minute en roulant à allure stable.
+// Au-delà de TROU_MAX_S, on considère que le flux a été coupé et on n'intègre pas.
+const TROU_MAX_S = 180;
 
 /** Puissance en kW à partir de la tension (V) et du courant (A) de la batterie. */
 export function powerKw(tension, courant) {
@@ -47,7 +50,7 @@ export class Trip {
     if (prec) {
       const dt = (t - prec.t) / 1000;
       if (dt > 0 && dt <= TROU_MAX_S) {
-        this.energieKwh += ((prec.kw + kw) / 2) * (dt / 3600); // méthode des trapèzes
+        this.energieKwh += prec.kw * (dt / 3600); // la valeur précédente est restée valable jusqu'à maintenant
       }
     }
     this.dernierePuissance = { kw, t };

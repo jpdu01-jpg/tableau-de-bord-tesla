@@ -147,3 +147,10 @@ test('config : champs manquants et non synchronisée', () => {
   egal(r.expire, null);
 });
 test('config : aucune configuration → null', () => egal(resumerConfigTelemetrie({ response: { config: null } }), null));
+
+test('données : batterie depuis Soc tant que BatteryLevel n\'est pas arrivé', () => {
+  const memoire = {};
+  egal(donneesTesla({ Soc: 67.1 }, memoire).batteryPct, 67);
+  egal(donneesTesla({ BatteryLevel: 66 }, memoire).batteryPct, 66);
+  egal(donneesTesla({ Soc: 70.4 }, memoire).batteryPct, undefined); // BatteryLevel reçu : il reste prioritaire
+});

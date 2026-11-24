@@ -29,10 +29,10 @@ test('énergie : 20 kW pendant 1 h = 20 kWh', () => {
   for (let s = 0; s <= 3600; s += 2) t.addPower(20, s * 1000);
   proche(t.energieKwh, 20, 0.001);
 });
-test('énergie : coupure de données > 30 s non intégrée', () => {
+test('énergie : coupure de données > 3 min non intégrée', () => {
   const t = new Trip();
   t.addPower(20, 0);
-  t.addPower(20, 120000);
+  t.addPower(20, 300000); // 5 min sans donnée : flux coupé
   egal(t.energieKwh, 0);
 });
 test('énergie : la récupération (puissance négative) réduit la consommation', () => {
@@ -56,4 +56,13 @@ test('sauvegarde puis reprise du trajet', () => {
   egal(repris.distanceM, t.distanceM);
   egal(repris.energieKwh, t.energieKwh);
   egal(repris.debut, 0);
+});
+
+test('énergie : puissance tenue entre deux messages espacés (envoi seulement si elle change)', () => {
+  const t = new Trip();
+  t.addPower(30, 0);
+  t.addPower(10, 120000); // 30 kW pendant 2 min = 1 kWh, même sans message intermédiaire
+  proche(t.energieKwh, 1, 0.0001);
+  t.addPower(10, 156000); // puis 10 kW pendant 36 s = 0,1 kWh
+  proche(t.energieKwh, 1.1, 0.0001);
 });

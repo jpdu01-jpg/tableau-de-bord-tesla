@@ -150,7 +150,14 @@ export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
     const c = champs.CruiseSetSpeed;
     d.cruiseKmh = c == null || c <= 0 ? null : uniteRegulateur === 'mph' ? c * MILE_KM : c;
   }
-  if (champs.BatteryLevel != null) d.batteryPct = champs.BatteryLevel;
+  // BatteryLevel n'est envoyé que quand il varie d'au moins 1 % : à l'arrêt, il peut ne jamais arriver.
+  // En attendant, on affiche Soc (état de charge, déjà envoyé pour TeslaMate : aucun coût en plus).
+  if (champs.BatteryLevel != null) {
+    memoire.niveauRecu = true;
+    d.batteryPct = champs.BatteryLevel;
+  } else if (champs.Soc != null && !memoire.niveauRecu) {
+    d.batteryPct = Math.round(champs.Soc);
+  }
   return d;
 }
 
