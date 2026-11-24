@@ -187,6 +187,11 @@ button:active { transform: scale(0.97); }
 }
 .reglages { max-height: 55vh; overflow: auto; }
 .accueil .reglages .aide { text-transform: none; letter-spacing: 0; margin: 8px 0 0; font-size: 12px; }
+.historique ol { list-style: none; padding: 0; margin: 10px 0; text-align: left; }
+.historique li { padding: 6px 0; border-bottom: 1px solid #ffffff14; color: #e5e7eb; font-variant-numeric: tabular-nums; }
+.historique li small { display: block; color: var(--doux); margin-top: 2px; font-size: 12px; }
+.historique li.vide { color: var(--doux); border: 0; text-align: center; }
+.historique .ligne button { flex: 1; }
 
 /* ---------- Mode navigation : écran partagé carte + compteurs compacts ---------- */
 .carte { display: none; grid-area: carte; position: relative; min-height: 0; border-radius: 22px; overflow: hidden; border: 1px solid var(--bord); background: #0b0f14; }

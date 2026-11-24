@@ -1,6 +1,7 @@
 // Affichage du tableau de bord. Aucun calcul métier ici : on reçoit un état et on l'affiche.
 import { ouvrirCarte, majCarte, redimensionnerCarte } from './carte.js';
 import { texteConsoInstantanee, textePuissance } from './lib/format.js';
+import { detailsTrajet, texteDate, texteHeure } from './lib/historique.js';
 
 const VITESSE_MAX = 200; // km/h, fin de l'échelle du compteur
 const PUISSANCE_MIN = -60; // kW, récupération maximale affichée
@@ -200,3 +201,30 @@ export function afficherModeNavigation(ouvert, jetonMapbox, position) {
   }
 }
 addEventListener('resize', redimensionnerCarte); // rotation du téléphone
+
+// ---------- Historique des trajets (écran d'accueil) ----------
+export function afficherHistorique(liste, demo) {
+  $('titre-historique').textContent = `Historique des trajets${demo ? ' (démo)' : ''} · ${liste.length}`;
+  $('btn-export-historique').disabled = $('btn-effacer-historique').disabled = !liste.length;
+  const ol = $('liste-historique');
+  ol.replaceChildren();
+  if (!liste.length) {
+    ol.append(Object.assign(document.createElement('li'), { className: 'vide', textContent: 'Aucun trajet enregistré pour l\'instant.' }));
+    return;
+  }
+  for (const r of liste.slice(0, 50)) { // les 50 derniers ; l'export contient tout
+    const d = detailsTrajet(r);
+    const batterie = r.batterieDebutPct != null ? ` · ${r.batterieDebutPct} → ${r.batterieFinPct} %` : '';
+    const meteo = [
+      d.temperatureMoy != null ? `${nombre(d.temperatureMoy)} °C` : null,
+      d.ventFaceMoyKmh != null ? `vent ${d.ventFaceMoyKmh >= 0 ? 'de face' : 'arrière'} ${nombre(Math.abs(d.ventFaceMoyKmh))} km/h` : null,
+    ].filter(Boolean).join(' · ');
+    const li = document.createElement('li');
+    const haut = document.createElement('div');
+    haut.textContent = `${texteDate(r.debut)} ${texteHeure(r.debut)} · ${nombre(r.distanceKm, 1)} km · ${nombre(d.kwh100, 1)} kWh/100${batterie}`;
+    const bas = document.createElement('small');
+    bas.textContent = [r.destination, `${nombre(d.dureeMin)} min`, meteo].filter(Boolean).join(' · ');
+    li.append(haut, bas);
+    ol.append(li);
+  }
+}

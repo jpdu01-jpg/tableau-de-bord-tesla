@@ -13,7 +13,8 @@ import { Teslogic, bluetoothDisponible } from './sources/teslogic.js';
 import { lireJetonTeslemetry, enregistrerJetonTeslemetry, lireRelaisTeslemetry, enregistrerRelaisTeslemetry, vehiculesTeslemetry, configTeslemetry, testerFluxTeslemetry, TeslaTeslemetry } from './sources/teslemetry.js';
 import { resumerConfigTeslemetry } from './lib/teslemetry.js';
 import { Simulation } from './sources/simulation.js';
-import { construire, afficher, afficherModeNavigation } from './ui.js';
+import { resumeTrajet, majHistorique, historiqueCsv } from './lib/historique.js';
+import { construire, afficher, afficherModeNavigation, afficherHistorique } from './ui.js';
 
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
@@ -238,7 +239,48 @@ function quitter() {
 }
 
 function sauvegarder() {
-  if (trip) localStorage.setItem(cleTrajet(), JSON.stringify(trip));
+  if (!trip) return;
+  localStorage.setItem(cleTrajet(), JSON.stringify(trip));
+  if ($('accueil').hidden) enregistrerHistorique(); // seulement pendant un trajet
+}
+
+// ---------- Historique des trajets (un résumé par trajet, mis à jour toutes les 10 s) ----------
+// Les trajets de démonstration ont leur propre historique, pour ne pas fausser le vrai.
+const cleHistorique = () => (mode === 'demo' ? 'historique-demo' : 'historique');
+const lireHistorique = () => JSON.parse(localStorage.getItem(cleHistorique()) || '[]');
+
+function enregistrerHistorique() {
+  if (trip.debut == null) return;
+  const e = calculerEcran();
+  const liste = lireHistorique();
+  const resume = resumeTrajet(liste.find((r) => r.debut === trip.debut), {
+    debut: trip.debut,
+    maintenant: trip.debut + e.dureeS * 1000,
+    distanceKm: trip.distanceKm,
+    energieKwh: trip.energieKwh,
+    batteriePct: e.batteryPct,
+    destination: etat.nav.destinationNom ?? null,
+    temperature: e.temperature,
+    ventKmh: e.vent?.vitesse ?? null,
+    ventFaceKmh: e.vent?.face ?? null,
+  });
+  const nouvelle = majHistorique(liste, resume);
+  if (nouvelle !== liste) localStorage.setItem(cleHistorique(), JSON.stringify(nouvelle));
+}
+
+// Fichier CSV (lisible par Excel / Numbers). Sur iPhone : feuille de partage (Fichiers, Mail…), sinon téléchargement.
+async function exporterHistorique() {
+  const nom = `trajets-${new Date().toISOString().slice(0, 10)}.csv`;
+  const fichier = new File(['\ufeff' + historiqueCsv(lireHistorique())], nom, { type: 'text/csv' }); // \ufeff : accents lus par Excel
+  if (navigator.canShare?.({ files: [fichier] })) {
+    try {
+      await navigator.share({ files: [fichier], title: 'Historique des trajets' });
+    } catch { /* partage annulé */ }
+    return;
+  }
+  const lien = Object.assign(document.createElement('a'), { href: URL.createObjectURL(fichier), download: nom });
+  lien.click();
+  setTimeout(() => URL.revokeObjectURL(lien.href), 10000);
 }
 
 // Empêche l'écran du téléphone de se mettre en veille pendant le trajet.
@@ -255,6 +297,7 @@ document.addEventListener('visibilitychange', () => {
 
 function preparerAccueil() {
   $('btn-reprendre').hidden = !localStorage.getItem('trajet');
+  afficherHistorique(lireHistorique(), mode === 'demo');
   const compteur = lireCompteur();
   const ceMois = compteur?.mois === new Date().toISOString().slice(0, 7) ? compteur.n : 0;
   $('info-mapbox').textContent = lireJeton()
@@ -410,6 +453,12 @@ $('btn-jeton').onclick = () => {
   enregistrerJeton($('jeton-mapbox').value);
   $('jeton-mapbox').value = '';
   mapbox = new MapboxLimitService(); // repart de zéro avec la nouvelle clé
+  preparerAccueil();
+};
+$('btn-export-historique').onclick = exporterHistorique;
+$('btn-effacer-historique').onclick = () => {
+  if (!confirm('Effacer tout l\'historique des trajets ? (pense à l\'exporter avant)')) return;
+  localStorage.removeItem(cleHistorique());
   preparerAccueil();
 };
 $('btn-nouveau').onclick = () => {
