@@ -131,14 +131,19 @@ export function devinerUniteRegulateur(consigne, vitesseGpsKmh) {
 
 /**
  * Transforme les champs reçus ({ PackVoltage: 398, CruiseSetSpeed: 130, … }) en données pour l'application :
- * { powerKw?, cruiseKmh?, batteryPct? }. La tension et le courant arrivent séparément : `memoire` garde
+ * { powerKw?, cruiseKmh?, batteryPct? }. Puissance : champ Power s'il est envoyé, sinon tension × courant. La tension et le courant arrivent séparément : `memoire` garde
  * la dernière valeur de chacun pour calculer la puissance. `uniteRegulateur` : 'kmh' (par défaut) ou 'mph'.
  */
 export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
   const d = {};
   if ('PackVoltage' in champs) memoire.tension = champs.PackVoltage;
   if ('PackCurrent' in champs) memoire.courant = champs.PackCurrent;
-  if (('PackVoltage' in champs || 'PackCurrent' in champs) && memoire.tension != null && memoire.courant != null) {
+  if ('Power' in champs) {
+    // Champ « Power » (kW, négatif en récupération) : fait partie de la configuration standard TeslaMate,
+    // donc déjà envoyé par la voiture. Prioritaire sur le calcul tension × courant.
+    memoire.powerDirect = true;
+    if (champs.Power != null) d.powerKw = champs.Power;
+  } else if (!memoire.powerDirect && ('PackVoltage' in champs || 'PackCurrent' in champs) && memoire.tension != null && memoire.courant != null) {
     d.powerKw = (memoire.tension * memoire.courant) / 1000; // courant positif = la batterie se décharge
   }
   if ('CruiseSetSpeed' in champs) {

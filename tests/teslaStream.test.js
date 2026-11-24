@@ -118,3 +118,12 @@ test('unité régulateur : 130 à 128 km/h GPS → km/h', () => egal(devinerUnit
 test('unité régulateur : 80 à 128 km/h GPS → mph', () => egal(devinerUniteRegulateur(80, 128), 'mph'));
 test('unité régulateur : vitesse loin de la consigne (pas engagé) → null', () => egal(devinerUniteRegulateur(80, 90), null));
 test('unité régulateur : trop lent pour décider → null', () => egal(devinerUniteRegulateur(50, 30), null));
+test('données : champ Power (kW) utilisé directement', () => {
+  egal(donneesTesla({ Power: 28 }, {}).powerKw, 28);
+  egal(donneesTesla({ Power: -12 }, {}).powerKw, -12);
+});
+test('données : Power prioritaire sur tension × courant', () => {
+  const memoire = {};
+  egal(donneesTesla({ Power: 30, PackVoltage: 400, PackCurrent: 50 }, memoire).powerKw, 30);
+  egal(donneesTesla({ PackCurrent: 60 }, memoire).powerKw, undefined); // déjà alimenté par Power : pas de mélange
+});
