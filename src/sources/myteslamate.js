@@ -85,6 +85,13 @@ export class TeslaMyTeslaMate {
   #arret = false;
   #memoire = {};
   #unite = localStorage.getItem('tesla-unite-regulateur') || 'kmh';
+  // Diagnostic affiché en touchant la pastille « Tesla » : ce qui s'est passé sur la connexion.
+  diag = { vin: null, connexions: 0, ouverte: false, messages: 0, mises: 0, signaux: 0, dernierMessage: 0, derniereMise: 0, journal: [] };
+
+  #noter(texte) {
+    const heure = new Date().toLocaleTimeString('fr-FR');
+    this.diag.journal = [...this.diag.journal, `${heure} ${texte}`].slice(-10);
+  }
 
   async start(onData) {
     this.#arret = false;
@@ -92,11 +99,14 @@ export class TeslaMyTeslaMate {
     try {
       vin = (await listerVehicules())[0]?.vin;
       if (!vin) throw new Error('aucun véhicule');
-    } catch {
+    } catch (e) {
       this.etat = 'erreur';
+      this.#noter(`liste des véhicules impossible : ${e.message}`);
       if (!this.#arret) this.#relance = setTimeout(() => this.start(onData), 30000);
       return;
     }
+    this.diag.vin = `…${vin.slice(-4)}`; // seulement la fin du VIN à l'écran
+    this.#noter('véhicule trouvé');
     this.#connecter(vin, onData, 0);
   }
 
@@ -105,12 +115,30 @@ export class TeslaMyTeslaMate {
   #connecter(vin, onData, essais) {
     if (this.#arret) return;
     this.etat = 'connexion';
+    this.diag.connexions++;
     const ws = (this.#ws = new WebSocket(STREAMING));
-    ws.onopen = () => ws.send(messageAbonnementBrut(lireJetonMTM(), vin));
+    ws.onopen = () => {
+      this.diag.ouverte = true;
+      this.#noter('connexion ouverte, abonnement envoyé');
+      ws.send(messageAbonnementBrut(lireJetonMTM(), vin));
+    };
     ws.onmessage = (ev) => {
       const m = interpreterMessageBrut(ev.data, vin);
-      if (m.type === 'erreur') this.etat = 'erreur';
+      this.diag.messages++;
+      this.diag.dernierMessage = Date.now();
+      if (m.type === 'erreur') {
+        this.etat = 'erreur';
+        this.#noter(`erreur du serveur : ${m.erreur}`);
+      }
+      const type = m.msgType?.replace(vin, 'VIN'); // le VIN complet n'est jamais affiché
+      if (m.type === 'autre' && type && type !== 'control:hello' && !this.diag.journal.some((l) => l.endsWith(type))) {
+        this.#noter(`message ${type}`); // ex. control:hello:VIN = abonnement accepté
+      }
       if (m.type !== 'donnees') return;
+      if (!this.diag.mises) this.#noter('premières données reçues');
+      this.diag.mises++;
+      this.diag.signaux += m.signaux;
+      this.diag.derniereMise = Date.now();
       this.etat = 'ok';
       essais = 0;
       if ('CruiseSetSpeed' in m.champs) this.#verifierUnite(m.champs.CruiseSetSpeed);
@@ -120,7 +148,9 @@ export class TeslaMyTeslaMate {
         t: Date.now(), // horloge du téléphone, comme le GPS
       });
     };
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      this.diag.ouverte = false;
+      this.#noter(`connexion fermée (code ${ev.code}${ev.reason ? `, ${ev.reason}` : ''})`);
       if (this.#arret) return;
       this.etat = 'erreur';
       const delai = Math.min(60000, 2000 * 2 ** essais); // 2 s, 4 s, 8 s… jusqu'à 1 min

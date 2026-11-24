@@ -118,7 +118,10 @@ function calculerEcran() {
   const vent = ventRelatif();
 
   const maintenant = p?.t ?? Date.now();
-  const teslaRecente = maintenant - etat.derniereTesla < 30000;
+  // Les données Tesla sont datées avec l'horloge du téléphone (sauf en démo, horloge simulée). On ne peut pas
+  // utiliser l'heure du dernier point GPS : à l'arrêt, il n'y en a plus, et une donnée ancienne paraissait récente.
+  const horlogeTesla = tesla.etat === 'simulation' ? maintenant : Date.now();
+  const teslaRecente = horlogeTesla - etat.derniereTesla < 30000;
   return {
     speedKmh,
     limitKmh: etat.limite?.limit ?? null,
@@ -127,7 +130,7 @@ function calculerEcran() {
     cruiseKmh: teslaRecente ? etat.cruiseKmh : null,
     powerKw: teslaRecente ? etat.powerKw : null,
     instantKwh100: teslaRecente ? instantKwhPer100(etat.powerKw, speedKmh) : null,
-    batteryPct: maintenant - etat.batteryT < 10 * 60000 ? etat.batteryPct : null, // masqué si plus vieux que 10 min
+    batteryPct: horlogeTesla - etat.batteryT < 10 * 60000 ? etat.batteryPct : null, // masqué si plus vieux que 10 min
     moyenneKwh100: trip.moyenneKwhPer100,
     distanceKm: trip.distanceKm,
     energieKwh: trip.energieKwh,
@@ -135,6 +138,7 @@ function calculerEcran() {
     vent,
     temperature: m?.temperature ?? null,
     sourceLimite: etat.sourceLimite,
+    diagTesla: diagnosticVisible ? { etat: tesla.etat, ...tesla.diag } : null,
     navigation: {
       ...etat.nav,
       active: navigationActive(etat.nav),
@@ -273,6 +277,13 @@ $('btn-demarrer').onclick = () => demarrer('reel', false);
 $('btn-reprendre').onclick = () => demarrer('reel', true);
 $('btn-demo').onclick = () => demarrer('demo', false);
 $('btn-quitter').onclick = quitter;
+// Toucher la pastille « Tesla » affiche ce qui se passe sur le flux (pour comprendre une absence de données).
+let diagnosticVisible = false;
+$('st-tesla').addEventListener('click', (ev) => {
+  ev.stopPropagation(); // ne pas basculer la carte
+  diagnosticVisible = !diagnosticVisible;
+  planifierAffichage();
+});
 $('cockpit').addEventListener('click', (ev) => {
   if (!ev.target.closest('button, a')) changerModeNavigation(!modeNavigation);
 });

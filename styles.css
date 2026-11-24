@@ -141,6 +141,15 @@ button {
 }
 button:active { transform: scale(0.97); }
 
+/* Diagnostic du flux Tesla (toucher la pastille « Tesla ») */
+.diag {
+  position: fixed; top: max(44px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 5; margin: 0;
+  max-width: min(92vw, 460px); padding: 10px 12px; border-radius: 12px; font: 11px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap;
+  color: var(--texte); background: rgba(5, 7, 10, 0.92); border: 1px solid var(--bord);
+}
+.diag[hidden] { display: none; }
+#st-tesla { cursor: pointer; }
+
 /* ---------- Écran d'accueil ---------- */
 .accueil {
   position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;

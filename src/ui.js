@@ -157,6 +157,23 @@ export function afficher(e) {
   $('nav-bas').hidden = !n.active;
   if (modeNavigation) majCarte(e.carte);
 
+  // Diagnostic du flux Tesla
+  const diag = $('diag-tesla');
+  diag.hidden = !e.diagTesla;
+  if (e.diagTesla) {
+    const d = e.diagTesla;
+    const ilya = (t) => (t ? `il y a ${Math.round((Date.now() - t) / 1000)} s` : 'jamais');
+    diag.textContent = d.connexions == null
+      ? `Flux Tesla : ${d.etat}${d.etat === 'simulation' ? ' (mode démo)' : ' (pas de clé MyTeslaMate, ou flux coupé : ajouter ?flux=1)'}`
+      : [
+        `Flux Tesla : ${d.etat} · véhicule ${d.vin ?? '?'}`,
+        `Connexion ${d.ouverte ? 'ouverte' : 'fermée'} · ${d.connexions} tentative(s)`,
+        `Messages : ${d.messages} (dernier ${ilya(d.dernierMessage)})`,
+        `Données : ${d.mises} mises à jour, ${d.signaux} signaux (dernière ${ilya(d.derniereMise)})`,
+        '', ...d.journal,
+      ].join('\n');
+  }
+
   // Heure et pastilles d'état
   $('heure').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   $('st-osm').textContent = e.sourceLimite === 'Mapbox' ? 'Limites · Mapbox' : 'Limites · OSM';
