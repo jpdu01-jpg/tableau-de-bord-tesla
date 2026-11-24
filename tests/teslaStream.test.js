@@ -127,3 +127,23 @@ test('données : Power prioritaire sur tension × courant', () => {
   egal(donneesTesla({ Power: 30, PackVoltage: 400, PackCurrent: 50 }, memoire).powerKw, 30);
   egal(donneesTesla({ PackCurrent: 60 }, memoire).powerKw, undefined); // déjà alimenté par Power : pas de mélange
 });
+
+// ---------- Configuration télémétrie ----------
+import { resumerConfigTelemetrie, CHAMPS_APP } from '../src/lib/teslaStream.js';
+
+test('config : complète et synchronisée', () => {
+  const fields = Object.fromEntries([...CHAMPS_APP, 'Gear'].map((c) => [c, { interval_seconds: 60 }]));
+  const r = resumerConfigTelemetrie({ response: { synced: true, config: { exp: 1796062989, fields } } });
+  vrai(r.synchronisee);
+  egal(r.nbChamps, CHAMPS_APP.length + 1);
+  egal(r.manquants.length, 0);
+  egal(r.expire.getTime(), 1796062989000);
+});
+test('config : champs manquants et non synchronisée', () => {
+  const r = resumerConfigTelemetrie({ response: { synced: false, config: { fields: { Gear: {}, BatteryLevel: {} } } } });
+  vrai(!r.synchronisee);
+  vrai(r.manquants.includes('CruiseSetSpeed'));
+  vrai(!r.manquants.includes('BatteryLevel'));
+  egal(r.expire, null);
+});
+test('config : aucune configuration → null', () => egal(resumerConfigTelemetrie({ response: { config: null } }), null));

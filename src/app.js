@@ -4,9 +4,9 @@ import { relativeWind } from './lib/wind.js';
 import { startGps } from './sources/gps.js';
 import { SpeedLimitService } from './sources/speedLimit.js';
 import { MapboxLimitService, lireJeton, enregistrerJeton, lireCompteur } from './sources/mapboxLimit.js';
-import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux, TeslaMyTeslaMate, FLUX_PARTAGE_DISPONIBLE } from './sources/myteslamate.js';
+import { lireJetonMTM, enregistrerJetonMTM, listerVehicules, testerFlux, lireConfigTelemetrie, TeslaMyTeslaMate, FLUX_PARTAGE_DISPONIBLE } from './sources/myteslamate.js';
 import { navigationActive, basculeAuto, heureArrivee } from './lib/navigation.js';
-import { SIGNAUX_PAR_CREDIT, texteValeur } from './lib/teslaStream.js';
+import { SIGNAUX_PAR_CREDIT, texteValeur, resumerConfigTelemetrie } from './lib/teslaStream.js';
 import { WeatherService } from './sources/weather.js';
 import { TeslaNonConnectee } from './sources/tesla.js';
 import { Simulation } from './sources/simulation.js';
@@ -244,6 +244,17 @@ async function testerTesla() {
     if (!vehicules.length) return ecrire('Aucun véhicule sur ce compte.');
     vehicules.forEach((v) => ecrire(`• ${v.nom} — VIN ${v.vin} — ${v.etat === 'online' ? 'éveillée' : v.etat === 'asleep' ? 'endormie' : v.etat}`));
     const v = vehicules[0];
+    try {
+      const c = resumerConfigTelemetrie(await lireConfigTelemetrie(v.vin));
+      if (!c) ecrire('\nConfiguration télémétrie : aucune sur la voiture.');
+      else {
+        ecrire(`\nConfiguration télémétrie : ${c.synchronisee ? 'appliquée à la voiture ✓' : 'PAS ENCORE appliquée (voiture à éveiller)'} · ${c.nbChamps} champs`);
+        if (c.expire) ecrire(`Expire le ${c.expire.toLocaleDateString('fr-FR')}`);
+        ecrire(c.manquants.length ? `Champs manquants pour le tableau de bord : ${c.manquants.join(', ')}` : 'Tous les champs du tableau de bord sont configurés ✓');
+      }
+    } catch (e) {
+      ecrire(`\nConfiguration télémétrie illisible : ${e.message}`);
+    }
     if (!FLUX_TESLA) {
       return ecrire('\nFlux temps réel non testé : le serveur MyTeslaMate ne l\'envoie qu\'à un seul abonné,\net ton TeslaMate l\'utilise déjà. En attente d\'une évolution chez MyTeslaMate.');
     }

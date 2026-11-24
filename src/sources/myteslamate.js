@@ -34,6 +34,16 @@ export async function listerVehicules(jeton = lireJetonMTM()) {
   return (json.response || []).map((v) => ({ nom: v.display_name || 'Tesla', vin: v.vin, etat: v.state }));
 }
 
+/** Configuration télémétrie appliquée à la voiture (réponse brute de l'API). Ne réveille pas la voiture. */
+export async function lireConfigTelemetrie(vin, jeton = lireJetonMTM()) {
+  const rep = await fetch(`${API}/vehicles/${vin}/fleet_telemetry_config`, {
+    headers: { Authorization: `Bearer ${jeton}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!rep.ok) throw new Error(`MyTeslaMate a répondu ${rep.status}`);
+  return rep.json();
+}
+
 /**
  * Écoute le flux temps réel (format brut) pendant 20 s. Renvoie un résumé :
  * { messages, mises, signaux, erreurs: [...], champs: { NomDuChamp: dernière valeur }, autres: [...], ferme: raison }

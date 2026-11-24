@@ -153,3 +153,28 @@ export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
   if (champs.BatteryLevel != null) d.batteryPct = champs.BatteryLevel;
   return d;
 }
+
+// ---------- Vérification de la configuration télémétrie de la voiture ----------
+
+/** Champs dont le tableau de bord a besoin (en plus de la configuration de base TeslaMate). */
+export const CHAMPS_APP = [
+  'BatteryLevel', 'CruiseSetSpeed', 'PackVoltage', 'PackCurrent',
+  'DestinationName', 'DestinationLocation', 'RouteLine', 'MinutesToArrival', 'MilesToArrival',
+  'RouteTrafficMinutesDelay', 'ExpectedEnergyPercentAtTripArrival',
+];
+
+/**
+ * Résume la réponse de GET /vehicles/{vin}/fleet_telemetry_config :
+ * { synchronisee, expire (Date | null), nbChamps, manquants: [...] } ou null si aucune configuration.
+ */
+export function resumerConfigTelemetrie(reponse) {
+  const r = reponse?.response;
+  const champs = r?.config?.fields;
+  if (!champs) return null;
+  return {
+    synchronisee: r.synced === true,
+    expire: r.config.exp ? new Date(r.config.exp * 1000) : null,
+    nbChamps: Object.keys(champs).length,
+    manquants: CHAMPS_APP.filter((c) => !(c in champs)),
+  };
+}
