@@ -1,7 +1,8 @@
 // Boîtier Teslogic V2 branché sur la voiture : trames CAN reçues en Bluetooth (gratuit, plusieurs fois par seconde).
 // Fournit puissance, vitesse, batterie, régulateur et limitation de vitesse (décodage : src/lib/can.js).
 //
-// ⚠️ Safari sur iPhone ne permet pas le Bluetooth aux pages web : ouvrir l'app dans le navigateur Bluefy.
+// ⚠️ Safari sur iPhone n'a pas le Bluetooth web d'origine : installer l'extension Safari « beacio » (App Store) et
+// ouvrir l'app dans un onglet Safari. Les extensions ne fonctionnent pas depuis l'icône de l'écran d'accueil.
 // La connexion doit être lancée par un toucher de l'utilisateur (règle des navigateurs) : bouton « Démarrer le
 // trajet » ou pastille « Voiture ». Le boîtier émet tout seul : il suffit d'écouter.
 import { decoderPaquet, donneesTeslogic } from '../lib/can.js';
@@ -30,7 +31,7 @@ export class Teslogic {
   async connecter(onData) {
     this.#onData = onData;
     this.#arret = false;
-    if (!bluetoothDisponible()) throw new Error('Bluetooth indisponible dans ce navigateur : ouvre l\'app dans Bluefy.');
+    if (!bluetoothDisponible()) throw new Error('Bluetooth indisponible : sur iPhone, ouvre l\'app dans un onglet Safari avec l\'extension beacio activée (pas depuis l\'écran d\'accueil).');
     this.etat = 'connexion';
     try {
       this.#appareil = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE] });

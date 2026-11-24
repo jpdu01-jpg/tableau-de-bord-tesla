@@ -382,7 +382,7 @@ $('st-tesla').addEventListener('click', (ev) => {
 $('st-can').addEventListener('click', (ev) => {
   ev.stopPropagation();
   if (mode !== 'reel') return;
-  if (!bluetoothDisponible()) return alert('Bluetooth indisponible dans ce navigateur : ouvre l\'app dans Bluefy.');
+  if (!bluetoothDisponible()) return alert('Bluetooth indisponible : sur iPhone, ouvre l\'app dans un onglet Safari avec l\'extension beacio activée (pas depuis l\'écran d\'accueil).');
   if (teslogic.etat === 'ok') diagnosticVisible = !diagnosticVisible;
   else connecterTeslogic();
   planifierAffichage();
