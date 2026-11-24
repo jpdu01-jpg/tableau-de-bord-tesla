@@ -160,10 +160,15 @@ export function afficher(e) {
   // Diagnostic du flux Tesla
   const diag = $('diag-tesla');
   diag.hidden = !e.diagTesla;
+  const lignesTeslogic = (b) => !b ? [] : [
+    `Boîtier Teslogic : ${b.etat} · ${b.paquets} paquets (dernier ${b.dernier ? `il y a ${Math.round((Date.now() - b.dernier) / 1000)} s` : 'jamais'})`,
+    `CAN : ${Object.entries(b.brut).map(([nom, v]) => `${nom}=${typeof v === 'number' ? Math.round(v * 10) / 10 : v ?? '∅'}`).join(', ') || 'rien'}`,
+    ...b.journal, '',
+  ];
   if (e.diagTesla) {
     const d = e.diagTesla;
     const ilya = (t) => (t ? `il y a ${Math.round((Date.now() - t) / 1000)} s` : 'jamais');
-    diag.textContent = d.connexions == null
+    diag.textContent = lignesTeslogic(e.diagTeslogic).join('\n') + (d.connexions == null
       ? `Flux Tesla : ${d.etat}${d.etat === 'simulation' ? ' (mode démo)' : ' (pas de clé MyTeslaMate, ou flux coupé : ajouter ?flux=1)'}`
       : [
         `Flux Tesla : ${d.etat} · véhicule ${d.vin ?? '?'}`,
@@ -172,12 +177,12 @@ export function afficher(e) {
         `Données : ${d.mises} mises à jour, ${d.signaux} signaux (dernière ${ilya(d.derniereMise)})`,
         `Champs : ${Object.entries(d.champs ?? {}).map(([nom, c]) => `${nom}×${c.n}=${c.valeur}${c.n > 1 ? ` (/${c.intervalleS} s)` : ''}`).join(', ') || 'aucun'}`,
         '', ...d.journal,
-      ].join('\n');
+      ].join('\n'));
   }
 
   // Heure et pastilles d'état
   $('heure').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  $('st-osm').textContent = e.sourceLimite === 'Mapbox' ? 'Limites · Mapbox' : 'Limites · OSM';
+  $('st-osm').textContent = `Limites · ${e.sourceLimite === 'Mapbox' || e.sourceLimite === 'Voiture' ? e.sourceLimite : 'OSM'}`;
   for (const [id, etat] of Object.entries(e.statuts)) {
     $(id).className = `pastille ${etat}`;
   }

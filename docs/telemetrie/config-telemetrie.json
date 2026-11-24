@@ -25,9 +25,6 @@
       "Soc": { "interval_seconds": 300, "minimum_delta": 2 },
       "VehicleSpeed": { "interval_seconds": 60, "minimum_delta": 5 },
 
-      "CruiseSetSpeed": { "interval_seconds": 1 },
-      "PackVoltage": { "interval_seconds": 5, "minimum_delta": 1 },
-      "PackCurrent": { "interval_seconds": 5, "minimum_delta": 2 },
       "DestinationName": { "interval_seconds": 60 },
       "DestinationLocation": { "interval_seconds": 60 },
       "RouteLine": { "interval_seconds": 60 },

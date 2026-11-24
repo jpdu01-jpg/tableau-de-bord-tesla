@@ -9,6 +9,7 @@ import { navigationActive, basculeAuto, heureArrivee } from './lib/navigation.js
 import { SIGNAUX_PAR_CREDIT, texteValeur, resumerConfigTelemetrie } from './lib/teslaStream.js';
 import { WeatherService } from './sources/weather.js';
 import { TeslaNonConnectee } from './sources/tesla.js';
+import { Teslogic, bluetoothDisponible } from './sources/teslogic.js';
 import { Simulation } from './sources/simulation.js';
 import { construire, afficher, afficherModeNavigation } from './ui.js';
 
@@ -26,6 +27,7 @@ const limites = new SpeedLimitService(); // OpenStreetMap : secours
 let mapbox = new MapboxLimitService(); // Mapbox : source principale si une clé est enregistrée
 const meteo = new WeatherService();
 let tesla = new TeslaNonConnectee();
+const teslogic = new Teslogic(); // boîtier branché sur la voiture (Bluetooth) : prioritaire quand il émet
 
 // Dernières valeurs reçues
 const etat = {
@@ -41,7 +43,12 @@ const etat = {
   recuLe: 0, // heure de réception (horloge du téléphone) de la dernière position
   nav: {}, // navigation de la Tesla : destinationNom, destinationPos, trace, minutesArrivee, kmArrivee, retardTraficMin, batterieArriveePct
   navRecueLe: 0, // heure de réception des minutes restantes (pour l'heure d'arrivée)
+  can: {}, // dernières valeurs du boîtier Teslogic : powerKw, speedKmh, batteryPct, cruiseKmh, limitKmh
+  canT: 0,
 };
+
+// Le boîtier Teslogic émet plusieurs fois par seconde : au-delà de 3 s sans rien, on revient aux autres sources.
+const canRecente = () => mode === 'reel' && Date.now() - etat.canT < 3000;
 let modeNavigation = false;
 
 const CHAMPS_NAV = ['destinationNom', 'destinationPos', 'trace', 'minutesArrivee', 'kmArrivee', 'retardTraficMin', 'batterieArriveePct'];
@@ -62,6 +69,7 @@ function surPosition(p) {
 
 // Mapbox si disponible ; OpenStreetMap si pas de clé, quota atteint, clé refusée ou Mapbox injoignable.
 function choisirLimite(p) {
+  if (canRecente() && etat.can.limitKmh != null) return; // limitation lue par la voiture : pas de requête Mapbox
   if (mapbox.disponible) {
     const r = mapbox.update(p);
     if (r || mapbox.etat !== 'erreur') {
@@ -74,10 +82,23 @@ function choisirLimite(p) {
   etat.sourceLimite = 'OSM';
 }
 
+function surTeslogic(d) {
+  Object.assign(etat.can, d);
+  etat.canT = d.t;
+  if (d.powerKw != null) trip.addPower(d.powerKw, d.t);
+  planifierAffichage();
+}
+
+function connecterTeslogic() {
+  teslogic.connecter(surTeslogic).catch((e) => {
+    if (e.name !== 'NotFoundError') alert(`Boîtier Teslogic : ${e.message}`); // NotFoundError = fenêtre fermée
+  });
+}
+
 function surTesla(d) {
   if (d.powerKw != null) {
     etat.powerKw = d.powerKw;
-    trip.addPower(d.powerKw, d.t);
+    if (!canRecente()) trip.addPower(d.powerKw, d.t); // le boîtier, bien plus précis, s'en charge
   }
   if ('cruiseKmh' in d) etat.cruiseKmh = d.cruiseKmh;
   if (d.batteryPct != null) {
@@ -113,7 +134,9 @@ function planifierAffichage() {
 
 function calculerEcran() {
   const p = etat.fix;
-  const speedKmh = p ? Math.round(p.speed * 3.6) : 0;
+  const can = canRecente() ? etat.can : {};
+  // vitesse affichée par la voiture si le boîtier émet, sinon celle du GPS
+  const speedKmh = can.speedKmh ?? (p ? Math.round(p.speed * 3.6) : 0);
   const m = etat.meteo;
   const vent = ventRelatif();
 
@@ -122,23 +145,26 @@ function calculerEcran() {
   // utiliser l'heure du dernier point GPS : à l'arrêt, il n'y en a plus, et une donnée ancienne paraissait récente.
   const horlogeTesla = tesla.etat === 'simulation' ? maintenant : Date.now();
   const teslaRecente = horlogeTesla - etat.derniereTesla < 30000;
+  const limiteVoiture = can.limitKmh != null;
+  const powerKw = can.powerKw ?? (teslaRecente ? etat.powerKw : null);
   return {
     speedKmh,
-    limitKmh: etat.limite?.limit ?? null,
-    roadRef: etat.limite?.ref,
-    roadName: etat.limite?.name,
-    cruiseKmh: teslaRecente ? etat.cruiseKmh : null,
-    powerKw: teslaRecente ? etat.powerKw : null,
-    instantKwh100: teslaRecente ? instantKwhPer100(etat.powerKw, speedKmh) : null,
-    batteryPct: horlogeTesla - etat.batteryT < 10 * 60000 ? etat.batteryPct : null, // masqué si plus vieux que 10 min
+    limitKmh: limiteVoiture ? can.limitKmh : etat.limite?.limit ?? null,
+    roadRef: limiteVoiture ? null : etat.limite?.ref, // le nom de la route vient de Mapbox / OSM, plus interrogés
+    roadName: limiteVoiture ? null : etat.limite?.name,
+    cruiseKmh: 'cruiseKmh' in can ? can.cruiseKmh : teslaRecente ? etat.cruiseKmh : null,
+    powerKw,
+    instantKwh100: instantKwhPer100(powerKw, speedKmh),
+    batteryPct: can.batteryPct ?? (horlogeTesla - etat.batteryT < 10 * 60000 ? etat.batteryPct : null), // masqué si plus vieux que 10 min
     moyenneKwh100: trip.moyenneKwhPer100,
     distanceKm: trip.distanceKm,
     energieKwh: trip.energieKwh,
     dureeS: trip.dureeS(maintenant),
     vent,
     temperature: m?.temperature ?? null,
-    sourceLimite: etat.sourceLimite,
+    sourceLimite: limiteVoiture ? 'Voiture' : etat.sourceLimite,
     diagTesla: diagnosticVisible ? { etat: tesla.etat, ...tesla.diag } : null,
+    diagTeslogic: diagnosticVisible && mode === 'reel' ? { etat: teslogic.etat, ...teslogic.diag } : null,
     navigation: {
       ...etat.nav,
       active: navigationActive(etat.nav),
@@ -152,6 +178,7 @@ function calculerEcran() {
       'st-osm': etat.sourceLimite === 'Mapbox' ? (mapbox.etat === 'refuse' ? 'erreur' : mapbox.etat) : limites.etat,
       'st-meteo': meteo.etat,
       'st-tesla': tesla.etat === 'simulation' ? 'simulation' : teslaRecente ? 'ok' : 'erreur',
+      'st-can': mode === 'demo' ? 'simulation' : canRecente() ? 'ok' : teslogic.etat === 'connexion' ? 'attente' : teslogic.etat === 'deconnecte' ? '' : 'erreur',
     },
   };
 }
@@ -190,6 +217,7 @@ async function demarrer(nouveauMode, reprendre) {
     arreter = () => {
       stopGps();
       tesla.stop();
+      teslogic.stop();
     };
   }
   planifierAffichage();
@@ -284,8 +312,13 @@ async function testerTesla() {
 }
 
 // ---------- Boutons ----------
-$('btn-demarrer').onclick = () => demarrer('reel', false);
-$('btn-reprendre').onclick = () => demarrer('reel', true);
+// En réel, le toucher sur « Démarrer » sert aussi à choisir le boîtier Teslogic (le navigateur l'exige).
+const demarrerReel = (reprendre) => {
+  if (bluetoothDisponible() && teslogic.etat !== 'ok') connecterTeslogic();
+  demarrer('reel', reprendre);
+};
+$('btn-demarrer').onclick = () => demarrerReel(false);
+$('btn-reprendre').onclick = () => demarrerReel(true);
 $('btn-demo').onclick = () => demarrer('demo', false);
 $('btn-quitter').onclick = quitter;
 // Toucher la pastille « Tesla » affiche ce qui se passe sur le flux (pour comprendre une absence de données).
@@ -293,6 +326,15 @@ let diagnosticVisible = false;
 $('st-tesla').addEventListener('click', (ev) => {
   ev.stopPropagation(); // ne pas basculer la carte
   diagnosticVisible = !diagnosticVisible;
+  planifierAffichage();
+});
+// Pastille « Voiture » (boîtier Teslogic) : connecte le boîtier s'il ne l'est pas, sinon affiche le diagnostic.
+$('st-can').addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  if (mode !== 'reel') return;
+  if (!bluetoothDisponible()) return alert('Bluetooth indisponible dans ce navigateur : ouvre l\'app dans Bluefy.');
+  if (teslogic.etat === 'ok') diagnosticVisible = !diagnosticVisible;
+  else connecterTeslogic();
   planifierAffichage();
 });
 $('cockpit').addEventListener('click', (ev) => {

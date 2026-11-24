@@ -142,7 +142,7 @@ test('config : complète et synchronisée', () => {
 test('config : champs manquants et non synchronisée', () => {
   const r = resumerConfigTelemetrie({ response: { synced: false, config: { fields: { Gear: {}, BatteryLevel: {} } } } });
   vrai(!r.synchronisee);
-  vrai(r.manquants.includes('CruiseSetSpeed'));
+  vrai(r.manquants.includes('DestinationName'));
   vrai(!r.manquants.includes('BatteryLevel'));
   egal(r.expire, null);
 });

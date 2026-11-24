@@ -163,9 +163,12 @@ export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
 
 // ---------- Vérification de la configuration télémétrie de la voiture ----------
 
-/** Champs dont le tableau de bord a besoin (en plus de la configuration de base TeslaMate). */
+/**
+ * Champs dont le tableau de bord a besoin (en plus de la configuration de base TeslaMate) : uniquement la navigation.
+ * Puissance, régulateur et limitation viendront du boîtier Teslogic (Bluetooth), gratuit et bien plus rapide.
+ */
 export const CHAMPS_APP = [
-  'BatteryLevel', 'CruiseSetSpeed', 'PackVoltage', 'PackCurrent',
+  'BatteryLevel',
   'DestinationName', 'DestinationLocation', 'RouteLine', 'MinutesToArrival', 'MilesToArrival',
   'RouteTrafficMinutesDelay', 'ExpectedEnergyPercentAtTripArrival',
 ];

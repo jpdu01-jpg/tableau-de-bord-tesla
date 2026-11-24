@@ -271,3 +271,11 @@ button:active { transform: scale(0.97); }
   .navigation .nav-bas { flex-wrap: wrap; gap: 2px 12px; padding: 6px 12px; }
   .navigation .nav-bas .valeur { font-size: min(5.5vw, 2.8vh); }
 }
+
+/* Portrait : 5 pastilles d'état, on les resserre (et elles passent à la ligne) pour laisser l'heure visible */
+@media (orientation: portrait) {
+  .haut { gap: 8px; }
+  .statuts { flex-wrap: wrap; gap: 4px; min-width: 0; }
+  .pastille { padding: 3px 7px; font-size: 10px; letter-spacing: 0.04em; white-space: nowrap; }
+  .pastille::before { margin-right: 4px; }
+}
