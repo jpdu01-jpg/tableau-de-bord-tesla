@@ -191,17 +191,17 @@ button:active { transform: scale(0.97); }
 .carte-message:empty { display: none; }
 .nav-haut { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; pointer-events: none; }
 .nav-dest {
-  max-width: 100%; padding: 8px 14px; border-radius: 14px; font-size: clamp(14px, 2.6vh, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; padding: 5px 10px; border-radius: 12px; font-size: clamp(12px, 2.1vh, 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   background: rgba(5, 7, 10, 0.78); border: 1px solid var(--bord); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .nav-dest::before { content: "⚑"; color: var(--bleu-tesla); margin-right: 8px; }
 .nav-bas {
-  position: absolute; left: 10px; right: 10px; bottom: 32px; display: flex; justify-content: space-between; gap: 10px; /* au-dessus du logo Mapbox (obligatoire) */
-  padding: 8px 14px; border-radius: 16px; pointer-events: none;
+  position: absolute; left: 10px; right: 10px; bottom: 28px; display: flex; justify-content: space-between; gap: 8px; /* au-dessus du logo Mapbox (obligatoire) */
+  padding: 4px 10px; border-radius: 12px; pointer-events: none;
   background: rgba(5, 7, 10, 0.82); border: 1px solid var(--bord); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.nav-bas .valeur { font-size: clamp(16px, 3.6vh, 30px); }
-.nav-bas .legende { font-size: clamp(9px, 1.3vh, 12px); letter-spacing: 0.1em; }
+.nav-bas .valeur { font-size: clamp(13px, 2.6vh, 22px); }
+.nav-bas .legende { font-size: clamp(8px, 1.1vh, 10px); letter-spacing: 0.08em; }
 
 .nav-bas[hidden] { display: none; }
 #nav-trafic-bloc.retard .valeur { color: var(--ambre); }
@@ -211,11 +211,13 @@ button:active { transform: scale(0.97); }
 .marqueur-voiture path { fill: #fff; }
 .mapboxgl-ctrl-attrib { opacity: 0.5; }
 
+/* En navigation, la barre d'état du haut disparaît pour laisser la place à la carte (toucher l'écran la fait revenir). */
 #cockpit.navigation {
   grid-template-columns: 1.55fr 1fr;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "haut haut" "carte centre" "carte gauche" "carte droite" "bas bas";
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "carte centre" "carte gauche" "carte droite" "bas bas";
 }
+.navigation .haut { display: none; }
 .navigation .carte { display: block; }
 .navigation .vitesse-val { font-size: clamp(56px, 17vh, 150px); }
 .navigation .vitesse { margin-top: 1vh; }
@@ -261,8 +263,8 @@ button:active { transform: scale(0.97); }
 
   #cockpit.navigation {
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-    grid-template-areas: "haut haut" "carte carte" "centre gauche" "droite droite" "bas bas";
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "carte carte" "centre gauche" "droite droite" "bas bas";
   }
   .navigation .centre { width: min(100%, 24vh); }
   .navigation .vitesse-val { font-size: min(14vw, 7vh); }
@@ -273,8 +275,8 @@ button:active { transform: scale(0.97); }
   .navigation .bas .info:nth-child(-n+3) { display: none; } /* trajet, durée, énergie : place réservée à la carte */
   .navigation .bas { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 1vh 2vw; }
   .navigation .vent { grid-column: auto; }
-  .navigation .nav-bas { flex-wrap: wrap; gap: 2px 12px; padding: 6px 12px; }
-  .navigation .nav-bas .valeur { font-size: min(5.5vw, 2.8vh); }
+  .navigation .nav-bas { flex-wrap: wrap; gap: 0 10px; padding: 3px 10px; }
+  .navigation .nav-bas .valeur { font-size: min(4.4vw, 2.2vh); }
 }
 
 /* Portrait : 5 pastilles d'état, on les resserre (et elles passent à la ligne) pour laisser l'heure visible */

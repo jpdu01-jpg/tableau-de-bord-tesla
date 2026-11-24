@@ -18,6 +18,7 @@ export class Teslogic {
   #onData = null;
   #arret = false;
   #relance = null;
+  #memoire = {}; // énergies de la batterie gardées d'un paquet à l'autre
   #surValeur = (ev) => this.#recevoir(ev.target.value);
 
   #noter(texte) {
@@ -65,7 +66,7 @@ export class Teslogic {
     this.diag.paquets++;
     this.diag.dernier = Date.now();
     this.etat = 'ok';
-    const d = donneesTeslogic(brut);
+    const d = donneesTeslogic(brut, this.#memoire);
     if (Object.keys(d).length) this.#onData?.({ ...d, t: Date.now() });
   }
 

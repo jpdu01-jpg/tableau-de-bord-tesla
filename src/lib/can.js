@@ -27,7 +27,8 @@ export function decouperTrames(paquet) {
 
 /**
  * Valeurs brutes d'un paquet (seulement celles présentes ; la dernière trame de chaque type l'emporte) :
- * { tensionV, courantA, vitesseKmh, batteriePct, consigneKmh, etatRegulateur, etatAutopilot, limiteKmh }.
+ * { tensionV, courantA, vitesseKmh, batteriePct, energiePleineKwh, energieRestanteKwh, reserveKwh,
+ *   consigneKmh, etatRegulateur, etatAutopilot, limiteKmh }.
  * limiteKmh vaut null quand la voiture ne connaît pas de limitation.
  */
 export function decoderPaquet(paquet) {
@@ -42,14 +43,22 @@ export function decoderPaquet(paquet) {
       case 0x1257: // vitesse affichée au tableau de bord
         v.vitesseKmh = lireBits(octets, 24, 9);
         break;
-      case 0x292: // niveau de batterie affiché
-        v.batteriePct = lireBits(octets, 0, 10) * 0.1;
+      case 0x292: // niveau de batterie de la batterie elle-même (« SOCUI », secours si 0x352 n'est pas encore arrivé)
+        v.batteriePct = lireBits(octets, 10, 10) * 0.1;
         break;
-      case 0x2b9:
-      case 0x12b9: { // aide à la conduite : consigne du régulateur et son état
-        const c = lireBits(octets, 0, 12);
-        v.consigneKmh = c === 4095 ? null : c * 0.1;
-        v.etatRegulateur = lireBits(octets, 12, 4);
+      case 0x352: // énergie de la batterie, en deux messages alternés (numéro dans les 2 premiers bits)
+        if (lireBits(octets, 0, 2) === 0) {
+          v.energiePleineKwh = lireBits(octets, 16, 16) * 0.02;
+          v.energieRestanteKwh = lireBits(octets, 32, 16) * 0.02;
+        } else if (lireBits(octets, 0, 2) === 1) {
+          v.reserveKwh = lireBits(octets, 16, 16) * 0.01; // réserve que la voiture ne montre pas (« buffer »)
+        }
+        break;
+      case 0x1286:
+      case 0x2286: { // état du moteur (DI_state) : état du régulateur et consigne affichée (le 0x286 du bus 0 est figé)
+        v.etatRegulateur = lireBits(octets, 12, 3);
+        const c = lireBits(octets, 15, 9) * 0.5;
+        v.consigneKmh = lireBits(octets, 24, 1) ? c : c * 1.609344; // bit d'unité : 1 = km/h, 0 = mph
         break;
       }
       case 0x1399: { // état de l'Autopilot et limitation de vitesse connue de la voiture (bus 1 seulement)
@@ -64,19 +73,30 @@ export function decoderPaquet(paquet) {
 }
 
 // États « Autopilot actif » de DAS_autopilotState (3 = actif, 4 = actif restreint, 5 = navigation Autopilot).
-// À CONFIRMER : la capture du 24/11 a été faite sans régulateur. Le régulateur seul (sans maintien de voie)
-// n'est peut-être pas signalé ici : une capture sur route avec le régulateur enclenché permettra de compléter.
 const AUTOPILOT_ACTIF = [3, 4, 5];
+// États « régulateur enclenché » de DI_cruiseState (2 = actif, 3 = arrêté derrière un véhicule, 4 = pied sur
+// l'accélérateur). 0 = indisponible, 1 = prêt : la consigne suit alors la vitesse, on ne l'affiche pas.
+const REGULATEUR_ACTIF = [2, 3, 4];
 
-/** Convertit les valeurs brutes en données du tableau de bord (mêmes noms que les autres sources Tesla). */
-export function donneesTeslogic(v) {
+/**
+ * Convertit les valeurs brutes en données du tableau de bord (mêmes noms que les autres sources Tesla).
+ * `memoire` garde les énergies d'un paquet à l'autre (les deux messages 0x352 n'arrivent pas ensemble).
+ */
+export function donneesTeslogic(v, memoire = {}) {
   const d = {};
   if (v.tensionV != null && v.courantA != null) d.powerKw = (v.tensionV * v.courantA) / 1000;
   if (v.vitesseKmh != null) d.speedKmh = v.vitesseKmh;
-  if (v.batteriePct != null) d.batteryPct = Math.round(v.batteriePct);
-  if (v.etatAutopilot != null) {
-    d.autopilotActif = AUTOPILOT_ACTIF.includes(v.etatAutopilot); // volant bleu à l'écran
-    d.cruiseKmh = d.autopilotActif && v.consigneKmh > 0 ? Math.round(v.consigneKmh) : null;
+  for (const cle of ['energiePleineKwh', 'energieRestanteKwh', 'reserveKwh']) if (v[cle] != null) memoire[cle] = v[cle];
+  const { energiePleineKwh: pleine, energieRestanteKwh: reste, reserveKwh: reserve } = memoire;
+  if (pleine > 0 && reste != null && reserve != null && pleine > reserve) {
+    // pourcentage affiché par la voiture : énergie restante hors réserve / capacité hors réserve
+    if (v.energieRestanteKwh != null || v.reserveKwh != null || v.energiePleineKwh != null) {
+      d.batteryPct = Math.max(0, Math.round(((reste - reserve) / (pleine - reserve)) * 100));
+    }
+  } else if (v.batteriePct != null) d.batteryPct = Math.round(v.batteriePct);
+  if (v.etatAutopilot != null) d.autopilotActif = AUTOPILOT_ACTIF.includes(v.etatAutopilot); // volant bleu à l'écran
+  if (v.etatRegulateur != null) {
+    d.cruiseKmh = REGULATEUR_ACTIF.includes(v.etatRegulateur) && v.consigneKmh > 0 ? Math.round(v.consigneKmh) : null;
   }
   if ('limiteKmh' in v) d.limitKmh = v.limiteKmh;
   return d;
