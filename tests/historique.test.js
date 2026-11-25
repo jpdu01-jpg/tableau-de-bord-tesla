@@ -1,5 +1,5 @@
 import { test, egal, proche, vrai } from './harness.js';
-import { resumeTrajet, majHistorique, detailsTrajet, historiqueCsv, ENTETES_CSV, DISTANCE_MIN_KM, TAILLE_MAX } from '../src/lib/historique.js';
+import { resumeTrajet, majHistorique, detailsTrajet, historiqueCsv, totauxHistorique, ENTETES_CSV, DISTANCE_MIN_KM, TAILLE_MAX } from '../src/lib/historique.js';
 
 const DEPART = new Date(2026, 10, 24, 8, 5).getTime(); // 24/11/2026 08:05, heure locale
 const MIN = 60000;
@@ -76,4 +76,17 @@ test('historique : export CSV (français, « ; », du plus ancien au plus récen
   vrai(lignes[1].startsWith('23/11/2026;08:05;08:10;5;0,9;0,10;;'), lignes[1]);
   egal(lignes[2], '24/11/2026;08:05;08:50;45;52,3;8,77;16,7;70;66;66;0;3,3;3,3;3,3;18;0;"Gare; quai ""B"""');
   egal(lignes[3], '');
+});
+
+test('historique : totaux (consommation moyenne pondérée par les km)', () => {
+  const t = totauxHistorique([
+    { debut: 0, fin: 30 * MIN, distanceKm: 40, energieKwh: 6 }, // 15 kWh/100
+    { debut: 0, fin: 15 * MIN, distanceKm: 10, energieKwh: 3 }, // 30 kWh/100
+  ]);
+  egal(t.trajets, 2);
+  egal(t.distanceKm, 50);
+  egal(t.energieKwh, 9);
+  egal(t.dureeMin, 45);
+  proche(t.kwh100, 18, 1e-9); // 9 kWh / 50 km, pas la moyenne des deux (22,5)
+  egal(totauxHistorique([]).kwh100, null);
 });

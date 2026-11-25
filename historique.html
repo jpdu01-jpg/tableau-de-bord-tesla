@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <title>Historique des trajets</title>
+  <!-- Page à part (pas le style du tableau de bord, prévu pour un écran fixe) : une page qui défile, lisible partout. -->
+  <style>
+    :root { --fond: #05070a; --verre: rgba(255,255,255,.04); --bord: rgba(255,255,255,.09); --texte: #eef3f8; --doux: #7d8a99;
+      --accent: #5fe3ff; --ambre: #ffb547; font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+      font-variant-numeric: tabular-nums; -webkit-text-size-adjust: 100%; color-scheme: dark; }
+    body { margin: 0; background: var(--fond); color: var(--texte); padding: max(16px, env(safe-area-inset-top)) 16px 32px; }
+    a { color: var(--accent); text-decoration: none; }
+    [hidden] { display: none !important; }
+    h1 { font-weight: 300; font-size: 28px; margin: 8px 0 4px; }
+    .source { color: var(--doux); font-size: 13px; margin: 0 0 14px; }
+    .source.erreur { color: var(--ambre); }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    button { font: inherit; font-size: 14px; color: var(--texte); background: var(--verre); border: 1px solid var(--bord);
+      border-radius: 12px; padding: 8px 14px; cursor: pointer; }
+    button:disabled { opacity: .4; }
+    .totaux { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 16px; }
+    .totaux div { background: var(--verre); border: 1px solid var(--bord); border-radius: 14px; padding: 10px 12px; }
+    .totaux b { display: block; font-size: 22px; font-weight: 400; }
+    .totaux span { color: var(--doux); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+    .tableau { overflow-x: auto; border: 1px solid var(--bord); border-radius: 14px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+    th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--bord); }
+    th { color: var(--doux); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; position: sticky; top: 0; background: #0b0f14; }
+    th:first-child, td:first-child, th.texte, td.texte { text-align: left; }
+    td.texte { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    tbody tr:hover { background: var(--verre); }
+    .doux { color: var(--doux); }
+    form { display: grid; gap: 8px; max-width: 460px; background: var(--verre); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; margin-bottom: 16px; }
+    form p { margin: 0; color: var(--doux); font-size: 13px; }
+    input { font: inherit; color: var(--texte); background: var(--fond); border: 1px solid var(--bord); border-radius: 10px; padding: 8px 12px; }
+    .vide { color: var(--doux); text-align: center; padding: 24px; }
+  </style>
+</head>
+<body>
+  <a href="./">← Tableau de bord</a>
+  <h1>Historique des trajets</h1>
+  <p class="source" id="source">Chargement…</p>
+
+  <!-- Affiché seulement si ce navigateur ne connaît pas encore la sauvegarde -->
+  <form id="connexion" hidden>
+    <p>Pour voir les trajets sauvegardés, saisis l'adresse du Worker « sauvegarde-trajets » et son mot de passe
+      (gardés uniquement dans ce navigateur).</p>
+    <input id="adresse" type="url" autocomplete="off" spellcheck="false" placeholder="https://sauvegarde-trajets.….workers.dev" required>
+    <input id="mdp" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+    <button type="submit">Afficher</button>
+  </form>
+
+  <div class="actions">
+    <button id="btn-actualiser">Actualiser</button>
+    <button id="btn-csv">Exporter en CSV</button>
+  </div>
+  <div class="totaux" id="totaux"></div>
+  <div class="tableau">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Départ</th><th>Arrivée</th><th class="texte">Destination</th><th>Distance</th><th>Durée</th>
+          <th>Vit. moy.</th><th>Énergie</th><th>Conso.</th><th>Batterie</th><th>Temp.</th><th>Vent</th><th>Vent de face</th>
+        </tr>
+      </thead>
+      <tbody id="lignes"></tbody>
+    </table>
+  </div>
+
+  <script type="module" src="src/historique-page.js"></script>
+</body>
+</html>

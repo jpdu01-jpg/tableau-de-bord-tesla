@@ -91,3 +91,15 @@ export function historiqueCsv(liste) {
   });
   return [ENTETES_CSV.join(';'), ...lignes].join('\r\n') + '\r\n';
 }
+
+/** Totaux d'une liste de trajets : nombre, km, kWh, durée, consommation moyenne (pondérée par les km). */
+export function totauxHistorique(liste) {
+  const t = { trajets: liste.length, distanceKm: 0, energieKwh: 0, dureeMin: 0 };
+  for (const r of liste) {
+    t.distanceKm += r.distanceKm || 0;
+    t.energieKwh += r.energieKwh || 0;
+    t.dureeMin += detailsTrajet(r).dureeMin;
+  }
+  t.kwh100 = t.distanceKm >= 1 ? (t.energieKwh / t.distanceKm) * 100 : null;
+  return t;
+}

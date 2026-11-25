@@ -193,6 +193,7 @@ button:active { transform: scale(0.97); }
 .historique li.vide { color: var(--doux); border: 0; text-align: center; }
 .historique .ligne button { flex: 1; }
 .historique .ligne + .ligne { margin-top: 8px; }
+.lien-historique { display: block; margin-top: 10px; color: var(--accent); text-decoration: none; text-align: center; }
 #adresse-sauvegarde { display: block; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
 
 /* ---------- Mode navigation : écran partagé carte + compteurs compacts ---------- */
