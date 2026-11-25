@@ -165,8 +165,12 @@
         <button id="btn-export-historique">Exporter en CSV</button>
         <button id="btn-effacer-historique">Effacer</button>
       </div>
-      <p class="aide">Un résumé par trajet, enregistré pendant la conduite sur ce téléphone uniquement : pense à exporter de temps en temps.</p>
-    </details>
+      <div class="ligne">
+        <button id="btn-sauvegarder">Sauvegarder maintenant</button>
+        <button id="btn-recuperer">Récupérer la sauvegarde</button>
+      </div>
+      <p class="aide" id="info-sauvegarde"></p>
+          </details>
 
     <details class="reglages">
       <summary>Réglages</summary>
@@ -189,6 +193,13 @@
         <button id="btn-relais-teslemetry">Enregistrer</button>
       </div>
       <button id="btn-test-teslemetry" class="test">Tester la connexion Teslemetry</button>
+
+      <label for="adresse-sauvegarde">Sauvegarde en ligne des trajets (Worker Cloudflare, voir relais/LISEZMOI.md)</label>
+      <input id="adresse-sauvegarde" type="url" autocomplete="off" spellcheck="false" placeholder="https://sauvegarde-trajets.….workers.dev">
+      <div class="ligne">
+        <input id="mdp-sauvegarde" type="password" autocomplete="off" spellcheck="false" placeholder="Mot de passe (le même que dans Cloudflare)">
+        <button id="btn-reglages-sauvegarde">Enregistrer</button>
+      </div>
 
       <label for="jeton-mtm">Clé API MyTeslaMate (données de la voiture)</label>
       <div class="ligne">

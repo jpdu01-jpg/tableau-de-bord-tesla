@@ -13,7 +13,9 @@ import { Teslogic, bluetoothDisponible } from './sources/teslogic.js';
 import { lireJetonTeslemetry, enregistrerJetonTeslemetry, lireRelaisTeslemetry, enregistrerRelaisTeslemetry, vehiculesTeslemetry, configTeslemetry, testerFluxTeslemetry, TeslaTeslemetry } from './sources/teslemetry.js';
 import { resumerConfigTeslemetry } from './lib/teslemetry.js';
 import { Simulation } from './sources/simulation.js';
-import { resumeTrajet, majHistorique, historiqueCsv } from './lib/historique.js';
+import { resumeTrajet, majHistorique, historiqueCsv, texteDate, texteHeure } from './lib/historique.js';
+import { fusionnerHistoriques } from './lib/sauvegarde.js';
+import { sauvegardeConfiguree, derniereSauvegarde, lireAdresseSauvegarde, enregistrerAdresseSauvegarde, enregistrerMotDePasseSauvegarde, envoyerHistorique, recupererHistorique, noterDejaSauvegardes } from './sources/sauvegarde.js';
 import { construire, afficher, afficherModeNavigation, afficherHistorique } from './ui.js';
 
 const params = new URLSearchParams(location.search);
@@ -236,6 +238,7 @@ function quitter() {
   verrouEcran?.release();
   $('accueil').hidden = false;
   preparerAccueil();
+  sauvegarderEnLigne(); // fin du trajet : copie dans la sauvegarde Cloudflare
 }
 
 function sauvegarder() {
@@ -268,6 +271,46 @@ function enregistrerHistorique() {
   if (nouvelle !== liste) localStorage.setItem(cleHistorique(), JSON.stringify(nouvelle));
 }
 
+// ---------- Sauvegarde en ligne (Worker Cloudflare) : seulement l'historique réel, jamais celui de la démo ----------
+let erreurSauvegarde = null;
+const lireHistoriqueReel = () => JSON.parse(localStorage.getItem('historique') || '[]');
+
+function afficherInfoSauvegarde(texte) {
+  const derniere = derniereSauvegarde();
+  $('info-sauvegarde').textContent = texte
+    ?? (!sauvegardeConfiguree() ? 'Sauvegarde en ligne non configurée (Réglages) : l\'historique est seulement sur ce téléphone.'
+      : erreurSauvegarde ? `Sauvegarde en échec : ${erreurSauvegarde}`
+      : derniere ? `Dernière sauvegarde en ligne : ${texteDate(derniere)} à ${texteHeure(derniere)}` : 'Sauvegarde en ligne configurée.');
+  $('btn-sauvegarder').disabled = $('btn-recuperer').disabled = !sauvegardeConfiguree();
+}
+
+async function sauvegarderEnLigne(manuel = false) {
+  if (!sauvegardeConfiguree()) return afficherInfoSauvegarde();
+  try {
+    const n = await envoyerHistorique(lireHistoriqueReel());
+    erreurSauvegarde = null;
+    afficherInfoSauvegarde(manuel ? `Sauvegarde réussie : ${n} trajet${n > 1 ? 's' : ''} envoyé${n > 1 ? 's' : ''}.` : undefined);
+  } catch (e) {
+    erreurSauvegarde = e.message; // nouvel essai au prochain trajet ou à la prochaine ouverture
+    afficherInfoSauvegarde();
+  }
+}
+
+async function recupererSauvegarde() {
+  try {
+    const distant = await recupererHistorique();
+    noterDejaSauvegardes(distant); // inutile de les renvoyer
+    const avant = lireHistoriqueReel();
+    const fusion = fusionnerHistoriques(avant, distant);
+    localStorage.setItem('historique', JSON.stringify(fusion));
+    preparerAccueil();
+    await sauvegarderEnLigne(); // envoie les trajets du téléphone absents de la sauvegarde
+    afficherInfoSauvegarde(`Récupéré : ${distant.length} trajet${distant.length > 1 ? 's' : ''} dans la sauvegarde, ${fusion.length - avant.length} ajouté${fusion.length - avant.length > 1 ? 's' : ''} ici.`);
+  } catch (e) {
+    afficherInfoSauvegarde(`Récupération impossible : ${e.message}`);
+  }
+}
+
 // Fichier CSV (lisible par Excel / Numbers). Sur iPhone : feuille de partage (Fichiers, Mail…), sinon téléchargement.
 async function exporterHistorique() {
   const nom = `trajets-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -298,6 +341,8 @@ document.addEventListener('visibilitychange', () => {
 function preparerAccueil() {
   $('btn-reprendre').hidden = !localStorage.getItem('trajet');
   afficherHistorique(lireHistorique(), mode === 'demo');
+  afficherInfoSauvegarde();
+  $('adresse-sauvegarde').value = lireAdresseSauvegarde();
   const compteur = lireCompteur();
   const ceMois = compteur?.mois === new Date().toISOString().slice(0, 7) ? compteur.n : 0;
   $('info-mapbox').textContent = lireJeton()
@@ -456,8 +501,19 @@ $('btn-jeton').onclick = () => {
   preparerAccueil();
 };
 $('btn-export-historique').onclick = exporterHistorique;
+$('btn-sauvegarder').onclick = () => sauvegarderEnLigne(true);
+$('btn-recuperer').onclick = recupererSauvegarde;
+$('btn-reglages-sauvegarde').onclick = () => {
+  enregistrerAdresseSauvegarde($('adresse-sauvegarde').value);
+  if ($('mdp-sauvegarde').value) enregistrerMotDePasseSauvegarde($('mdp-sauvegarde').value);
+  else if (!$('adresse-sauvegarde').value) enregistrerMotDePasseSauvegarde(''); // tout vide : sauvegarde désactivée
+  $('mdp-sauvegarde').value = '';
+  erreurSauvegarde = null;
+  preparerAccueil();
+  sauvegarderEnLigne(true);
+};
 $('btn-effacer-historique').onclick = () => {
-  if (!confirm('Effacer tout l\'historique des trajets ? (pense à l\'exporter avant)')) return;
+  if (!confirm('Effacer l\'historique des trajets de ce téléphone ? (pense à l\'exporter avant ; la sauvegarde en ligne est conservée)')) return;
   localStorage.removeItem(cleHistorique());
   preparerAccueil();
 };
@@ -469,10 +525,12 @@ $('btn-nouveau').onclick = () => {
 };
 
 setInterval(sauvegarder, 10000); // le trajet survit à un rechargement ou une fermeture de l'app
+setInterval(() => { if (mode === 'reel' && $('accueil').hidden) sauvegarderEnLigne(); }, 5 * 60000); // en route
 setInterval(planifierAffichage, 1000); // horloge et durée, même sans nouvelle position
 
 construire();
 preparerAccueil();
+sauvegarderEnLigne(); // envoie ce qui n'a pas pu l'être (réseau absent en fin de trajet)
 if (params.has('demo')) demarrer('demo', false);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
