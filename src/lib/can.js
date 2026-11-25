@@ -28,13 +28,17 @@ export function decouperTrames(paquet) {
 /**
  * Valeurs brutes d'un paquet (seulement celles présentes ; la dernière trame de chaque type l'emporte) :
  * { tensionV, courantA, vitesseKmh, batteriePct, energiePleineKwh, energieRestanteKwh, reserveKwh,
- *   consigneKmh, etatRegulateur, etatAutopilot, limiteKmh }.
+ *   consigneKmh, etatRegulateur, etatAutopilot, limiteKmh, rapport (P, R, N, D) }.
  * limiteKmh vaut null quand la voiture ne connaît pas de limitation.
  */
 export function decoderPaquet(paquet) {
   const v = {};
   for (const { id, octets } of decouperTrames(paquet)) {
     switch (id) {
+      case 0x118:
+      case 0x1118: // état du moteur (DI_systemStatus) : rapport de boîte P, R, N, D (vérifié sur la capture)
+        v.rapport = RAPPORTS[lireBits(octets, 21, 3)] ?? null;
+        break;
       case 0x132: // batterie haute tension : tension et courant (positif = la batterie se décharge)
         v.tensionV = lireBits(octets, 0, 16) * 0.01;
         v.courantA = lireBits(octets, 16, 16, true) * -0.1;
@@ -73,6 +77,7 @@ export function decoderPaquet(paquet) {
 }
 
 // États « Autopilot actif » de DAS_autopilotState (3 = actif, 4 = actif restreint, 5 = navigation Autopilot).
+const RAPPORTS = { 1: 'P', 2: 'R', 3: 'N', 4: 'D' }; // 0 = invalide, 7 = indisponible
 const AUTOPILOT_ACTIF = [3, 4, 5];
 // États « régulateur enclenché » de DI_cruiseState (2 = actif, 3 = arrêté derrière un véhicule, 4 = pied sur
 // l'accélérateur). 0 = indisponible, 1 = prêt : la consigne suit alors la vitesse, on ne l'affiche pas.
@@ -99,5 +104,6 @@ export function donneesTeslogic(v, memoire = {}) {
     d.cruiseKmh = REGULATEUR_ACTIF.includes(v.etatRegulateur) && v.consigneKmh > 0 ? Math.round(v.consigneKmh) : null;
   }
   if ('limiteKmh' in v) d.limitKmh = v.limiteKmh;
+  if (v.rapport) d.rapport = v.rapport;
   return d;
 }

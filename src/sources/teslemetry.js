@@ -143,7 +143,10 @@ export class TeslaTeslemetry {
           this.#noter('flux interrompu, reconnexion automatique');
         }
       },
-      onEtat: (e) => this.#noter(`voiture : ${e}`),
+      onEtat: (e) => {
+        this.#noter(`voiture : ${e}`);
+        onData({ etatVoiture: e, t: Date.now() }); // voiture endormie = garée : fin du trajet
+      },
       onData: (m) => this.#recevoir(m, onData),
     });
   }

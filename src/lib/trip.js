@@ -8,6 +8,22 @@ const PRECISION_MAX_M = 35; // on ignore les positions GPS moins précises que �
 // Au-delà de TROU_MAX_S, on considère que le flux a été coupé et on n'intègre pas.
 const TROU_MAX_S = 180;
 
+// Fin automatique d'un trajet (une ligne d'historique par étape, comme les autres applis de trajets) : le trajet
+// s'arrête au dernier mouvement ; au redémarrage, on commence un NOUVEAU trajet si l'arrêt a assez duré.
+export const PAUSE_PARKING_MS = 2 * 60000; // voiture mise en P (boîtier) ou endormie (Teslemetry)
+export const PAUSE_SANS_INFO_MS = 10 * 60000; // rapport de boîte inconnu : seul le GPS dit que l'on ne bouge plus
+export const VITESSE_DEPART_KMH = 5; // au-dessus, on roule de nouveau
+
+/**
+ * Au redémarrage : faut-il commencer un nouveau trajet ?
+ * @param parque true = mise en P ou voiture endormie depuis le dernier mouvement ; false = rapport connu et jamais P
+ *               (bouchon : on ne coupe pas) ; null = inconnu (pas de boîtier)
+ */
+export function nouveauTrajetAuDepart(dernierMouvement, maintenant, parque) {
+  if (dernierMouvement == null || parque === false) return false;
+  return maintenant - dernierMouvement >= (parque ? PAUSE_PARKING_MS : PAUSE_SANS_INFO_MS);
+}
+
 /** Puissance en kW à partir de la tension (V) et du courant (A) de la batterie. */
 export function powerKw(tension, courant) {
   if (tension == null || courant == null) return null;
@@ -26,6 +42,7 @@ export class Trip {
     this.energieKwh = 0;
     this.debut = null; // horodatage (ms) du premier point
     this.dernierPoint = null; // {lat, lon, t}
+    this.dernierMouvement = null; // heure (ms) de la dernière position en mouvement : la « fin » du trajet
     this.dernierePuissance = null; // {kw, t}
     if (etat) Object.assign(this, etat);
   }
@@ -39,6 +56,7 @@ export class Trip {
       const enMouvement = (p.speed ?? 0) > 1 || d > 15; // filtre la « dérive » GPS à l'arrêt
       if (!enMouvement) return;
       this.distanceM += d;
+      this.dernierMouvement = p.t;
     }
     this.dernierPoint = { lat: p.lat, lon: p.lon, t: p.t };
   }
@@ -72,7 +90,7 @@ export class Trip {
 
   /** État sérialisable, pour reprendre le trajet après un rechargement de la page. */
   toJSON() {
-    const { distanceM, energieKwh, debut, dernierPoint, dernierePuissance } = this;
-    return { distanceM, energieKwh, debut, dernierPoint, dernierePuissance };
+    const { distanceM, energieKwh, debut, dernierPoint, dernierePuissance, dernierMouvement } = this;
+    return { distanceM, energieKwh, debut, dernierPoint, dernierePuissance, dernierMouvement };
   }
 }

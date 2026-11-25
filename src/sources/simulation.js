@@ -9,6 +9,7 @@ const PAS_S = 1; // une position par seconde, comme un vrai GPS
 const CAPACITE_KWH = 75; // capacité utile approximative d'une Model Y Grande Autonomie
 const NAV_APRES_S = 15; // la « destination est saisie dans la Tesla » après 15 s : la carte s'ouvre toute seule
 const KMH_MOYEN_NAV = 85; // vitesse moyenne pour estimer le temps restant
+const PAUSE_ARRIVEE_S = 180; // à l'arrivée : garé (P) 3 min, puis nouveau tour → teste la fin automatique des trajets
 
 // Itinéraire simulé de la Tesla : un point sur 5 suffit pour le tracé ; distance cumulée pour le « restant ».
 const TRACE_DEMO = ROUTE_DEMO.filter((_, i) => i % 5 === 0 || i === ROUTE_DEMO.length - 1).map(([lat, lon]) => ({ lat, lon }));
@@ -43,8 +44,16 @@ export class Simulation {
     let derniereBatterie = -Infinity;
     let derniereNav = -Infinity;
     const debut = t;
+    let gareJusqua = null; // à l'arrivée : heure (simulée) de départ pour un nouveau tour
     const tick = () => {
-      if (i >= ROUTE_DEMO.length - 1) { i = 0; dansSegment = 0; } // boucle à la fin
+      if (gareJusqua != null) {
+        t += PAS_S * 1000;
+        const [lat, lon] = ROUTE_DEMO[ROUTE_DEMO.length - 1];
+        onFix({ lat, lon, accuracy: 5, speed: 0, heading: null, t });
+        onTesla({ powerKw: 0.3, rapport: 'P', cruiseKmh: null, autopilotActif: false, t });
+        if (t >= gareJusqua) { gareJusqua = null; i = 0; dansSegment = 0; vitesse = 0; } // nouveau tour
+        return;
+      }
       const [lat1, lon1, vCible] = ROUTE_DEMO[i];
       const [lat2, lon2] = ROUTE_DEMO[i + 1];
       const a = { lat: lat1, lon: lon1 }, b = { lat: lat2, lon: lon2 };
@@ -59,6 +68,10 @@ export class Simulation {
         dansSegment -= longueur;
         i++;
         longueur = distanceM({ lat: ROUTE_DEMO[i][0], lon: ROUTE_DEMO[i][1] }, { lat: ROUTE_DEMO[i + 1][0], lon: ROUTE_DEMO[i + 1][1] });
+      }
+      if (i === ROUTE_DEMO.length - 2 && dansSegment >= longueur) {
+        gareJusqua = t + PAUSE_ARRIVEE_S * 1000; // arrivé : on se gare
+        vitesse = 0;
       }
       const p1 = { lat: ROUTE_DEMO[i][0], lon: ROUTE_DEMO[i][1] };
       const p2 = { lat: ROUTE_DEMO[i + 1][0], lon: ROUTE_DEMO[i + 1][1] };
@@ -78,6 +91,7 @@ export class Simulation {
       const puissance = puissanceModelY(vitesse, acceleration, this.ventDeFaceMs);
       batterie -= ((puissance * PAS_S) / 3600 / CAPACITE_KWH) * 100;
       const msg = {
+        rapport: 'D',
         powerKw: puissance,
         cruiseKmh: kmh > 70 ? Math.round(kmh / 5) * 5 : null, // régulateur engagé au-dessus de 70 km/h
         autopilotActif: kmh > 70, // volant bleu affiché en même temps

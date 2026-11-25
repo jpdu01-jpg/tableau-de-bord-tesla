@@ -1,5 +1,5 @@
 // Point d'entrée : relie les sources de données, les calculs et l'affichage.
-import { Trip, instantKwhPer100 } from './lib/trip.js';
+import { Trip, instantKwhPer100, nouveauTrajetAuDepart, VITESSE_DEPART_KMH } from './lib/trip.js';
 import { relativeWind } from './lib/wind.js';
 import { startGps } from './sources/gps.js';
 import { SpeedLimitService } from './sources/speedLimit.js';
@@ -50,6 +50,9 @@ const etat = {
   navRecueLe: 0, // heure de réception des minutes restantes (pour l'heure d'arrivée)
   can: {}, // dernières valeurs du boîtier Teslogic : powerKw, speedKmh, batteryPct, cruiseKmh, limitKmh
   canT: 0,
+  // Depuis le dernier mouvement : true = mise en P ou voiture endormie, false = rapport connu et jamais P, null = inconnu.
+  // Sert à décider, au redémarrage, si c'est un nouveau trajet (fin automatique des trajets).
+  parque: null,
 };
 
 // Le boîtier Teslogic émet plusieurs fois par seconde : au-delà de 3 s sans rien, on revient aux autres sources.
@@ -64,6 +67,11 @@ const cleTrajet = () => (mode === 'demo' ? 'trajet-demo' : 'trajet');
 function surPosition(p) {
   etat.fix = p;
   etat.recuLe = Date.now();
+  if ((p.speed ?? 0) * 3.6 >= VITESSE_DEPART_KMH) {
+    // On roule : après un vrai arrêt (garé, voiture endormie, ou longue immobilité), c'est un nouveau trajet.
+    if (nouveauTrajetAuDepart(trip.dernierMouvement, p.t, etat.parque)) commencerNouveauTrajet();
+    etat.parque = canRecente() && etat.can.rapport ? false : null;
+  }
   trip.addPosition(p);
   choisirLimite(p);
   etat.meteo = meteo.update(p);
@@ -86,7 +94,16 @@ function choisirLimite(p) {
   etat.sourceLimite = 'OSM';
 }
 
+// Rapport de boîte (boîtier, ou simulation) : la mise en P marque la fin probable du trajet.
+function noterRapport(r) {
+  if (r === 'P') {
+    if (etat.parque !== true) sauvegarderEnLigne(); // le trajet est fini : copie en ligne sans attendre
+    etat.parque = true;
+  } else if (etat.parque !== true) etat.parque = false;
+}
+
 function surTeslogic(d) {
+  if (d.rapport) noterRapport(d.rapport);
   Object.assign(etat.can, d);
   etat.canT = d.t;
   if (d.powerKw != null) trip.addPower(d.powerKw, d.t);
@@ -100,6 +117,12 @@ function connecterTeslogic() {
 }
 
 function surTesla(d) {
+  if ('etatVoiture' in d) {
+    // Teslemetry : voiture endormie ou hors ligne = garée (le trajet est fini)
+    if (['asleep', 'offline'].includes(d.etatVoiture)) noterRapport('P');
+    return;
+  }
+  if (d.rapport) noterRapport(d.rapport); // mode démo
   if (d.powerKw != null) {
     etat.powerKw = d.powerKw;
     if (!canRecente()) trip.addPower(d.powerKw, d.t); // le boîtier, bien plus précis, s'en charge
@@ -252,13 +275,17 @@ function sauvegarder() {
 const cleHistorique = () => (mode === 'demo' ? 'historique-demo' : 'historique');
 const lireHistorique = () => JSON.parse(localStorage.getItem(cleHistorique()) || '[]');
 
+let dernierMouvementEnregistre = null;
 function enregistrerHistorique() {
-  if (trip.debut == null) return;
+  // Résumé mis à jour seulement quand on a roulé depuis la dernière fois : à l'arrêt (garé, en recharge), l'heure
+  // d'arrivée et la batterie du trajet ne bougent plus.
+  if (trip.debut == null || trip.dernierMouvement == null || trip.dernierMouvement === dernierMouvementEnregistre) return;
+  dernierMouvementEnregistre = trip.dernierMouvement;
   const e = calculerEcran();
   const liste = lireHistorique();
   const resume = resumeTrajet(liste.find((r) => r.debut === trip.debut), {
     debut: trip.debut,
-    maintenant: trip.debut + e.dureeS * 1000,
+    maintenant: trip.dernierMouvement, // fin du trajet = dernier mouvement
     distanceKm: trip.distanceKm,
     energieKwh: trip.energieKwh,
     batteriePct: e.batteryPct,
@@ -519,10 +546,18 @@ $('btn-effacer-historique').onclick = () => {
 };
 $('btn-nouveau').onclick = () => {
   if (!confirm('Remettre le trajet à zéro ?')) return;
-  trip = new Trip();
-  sauvegarder();
-  planifierAffichage();
+  commencerNouveauTrajet();
 };
+
+// Le trajet en cours est déjà dans l'historique (résumé à jour au dernier mouvement) : on en ouvre un nouveau.
+function commencerNouveauTrajet() {
+  sauvegarder();
+  trip = new Trip();
+  etat.parque = null;
+  sauvegarder();
+  sauvegarderEnLigne();
+  planifierAffichage();
+}
 
 setInterval(sauvegarder, 10000); // le trajet survit à un rechargement ou une fermeture de l'app
 setInterval(() => { if (mode === 'reel' && $('accueil').hidden) sauvegarderEnLigne(); }, 5 * 60000); // en route

@@ -11,6 +11,9 @@ const ENERGIE_1 = '52 03 01 00 50 01 6d 0a a6 00'; // réserve 3,36 kWh
 const REGULATEUR_ACTIF = '86 22 3c 2c 5b 23 02 08 00 00'; // régulateur enclenché, consigne 91 km/h
 const REGULATEUR_PRET = '86 22 fd 12 32 23 02 0c 00 00'; // régulateur prêt (non enclenché), 50 km/h proposés
 const AUTOPILOT = '99 13 01 0a ff 80 b0 44 f1 0b'; // Autopilot 1 (indisponible), limitation 50 km/h
+const RAPPORT_P = '18 01 97 86 30 00 00 48 00 80'; // garé (début de la capture)
+const RAPPORT_R = '18 11 48 6a 55 00 00 68 08 00'; // marche arrière (bus 1)
+const RAPPORT_D = '18 01 51 64 95 00 00 c8 78 ff'; // en route
 const paquet = (...trames) => hex(trames.join(' '));
 
 test('CAN : lecture de bits petit-boutiste', () => {
@@ -81,4 +84,11 @@ test('CAN : limitation « aucune » (31) → null, « inconnue » (0) → ignor�
 test('CAN : messages inconnus ignorés, paquet vide', () => {
   egal(Object.keys(decoderPaquet(paquet('99 03 01 0a 00 00 00 00 00 00'))).length, 0); // 0x399 sur le bus 0 : vide
   egal(Object.keys(donneesTeslogic(decoderPaquet(new Uint8Array(0)))).length, 0);
+});
+
+test('CAN : rapport de boîte P, R, D (capture réelle, bus 0 et 1)', () => {
+  egal(donneesTeslogic(decoderPaquet(paquet(RAPPORT_P))).rapport, 'P');
+  egal(donneesTeslogic(decoderPaquet(paquet(RAPPORT_R))).rapport, 'R');
+  egal(donneesTeslogic(decoderPaquet(paquet(RAPPORT_D))).rapport, 'D');
+  vrai(!('rapport' in donneesTeslogic(decoderPaquet(paquet(VITESSE)))));
 });

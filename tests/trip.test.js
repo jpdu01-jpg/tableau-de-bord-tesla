@@ -1,5 +1,5 @@
 import { test, egal, proche } from './harness.js';
-import { Trip, powerKw, instantKwhPer100 } from '../src/lib/trip.js';
+import { Trip, powerKw, instantKwhPer100, nouveauTrajetAuDepart, PAUSE_PARKING_MS, PAUSE_SANS_INFO_MS } from '../src/lib/trip.js';
 
 test('puissance : 400 V × 50 A = 20 kW', () => egal(powerKw(400, 50), 20));
 test('puissance : donnée manquante → null', () => egal(powerKw(400, null), null));
@@ -65,4 +65,21 @@ test('énergie : puissance tenue entre deux messages espacés (envoi seulement s
   proche(t.energieKwh, 1, 0.0001);
   t.addPower(10, 156000); // puis 10 kW pendant 36 s = 0,1 kWh
   proche(t.energieKwh, 1.1, 0.0001);
+});
+
+test('trajet : dernier mouvement = dernière position en mouvement (pas l\'attente à l\'arrêt)', () => {
+  const t = new Trip();
+  t.addPosition({ lat: 48, lon: 2, accuracy: 5, speed: 20, t: 0 });
+  t.addPosition({ lat: 48.001, lon: 2, accuracy: 5, speed: 20, t: 5000 });
+  t.addPosition({ lat: 48.00101, lon: 2, accuracy: 5, speed: 0, t: 600000 }); // garé, dérive GPS
+  egal(t.dernierMouvement, 5000);
+  egal(new Trip(JSON.parse(JSON.stringify(t))).dernierMouvement, 5000); // conservé après rechargement
+});
+test('trajet : nouveau trajet au redémarrage selon la durée de l\'arrêt', () => {
+  egal(nouveauTrajetAuDepart(null, 1e9, true), false); // pas encore roulé
+  egal(nouveauTrajetAuDepart(0, PAUSE_PARKING_MS - 1, true), false); // P très bref (manœuvre)
+  egal(nouveauTrajetAuDepart(0, PAUSE_PARKING_MS, true), true); // garé (P ou voiture endormie)
+  egal(nouveauTrajetAuDepart(0, 3600000, false), false); // resté en D (bouchon) : jamais coupé
+  egal(nouveauTrajetAuDepart(0, PAUSE_SANS_INFO_MS - 1, null), false); // sans boîtier : feu rouge, bouchon court
+  egal(nouveauTrajetAuDepart(0, PAUSE_SANS_INFO_MS, null), true);
 });
