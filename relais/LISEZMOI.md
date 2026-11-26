@@ -84,9 +84,6 @@ prochain arrêt de la Tesla (« Electra Boulazac, 150 kilowatts, à 3,7 kilomèt
   demandant un détour de plus de 30 km.
 - La commande **remplace le trajet** : la suite du voyage est à reprogrammer à la borne (choix : `ORDRE` en haut de
   `borne-worker.modele.js`, 2 = ajouter comme prochain arrêt en gardant la suite).
-- **Sans navigation en cours** : la borne est cherchée autour de la voiture (jusqu'à 50 km ; en roulant, celles
-  devant d'abord). La position est demandée à la voiture une seule fois (quelques crédits Teslemetry) ; si elle
-  dort, Siri le dit et rien n'est proposé.
 - Liste des bornes : `data/bornes.json` (base nationale des IRVE), mise à jour avec `python3 outils/bornes.py`.
 
 **Sécurité** : ce Worker peut envoyer une commande à la voiture. Il ne fait que de la navigation, et seulement vers une
@@ -132,7 +129,7 @@ puis « Electra » et répondre **Non** : rien n'est envoyé. Répondre **Oui** 
 
 ## Messages possibles
 
-- « Erreur : la Tesla est endormie… » : sans navigation, la position ne peut pas être lue quand la voiture dort.
+- « Aucune navigation en cours dans la Tesla. » : pas de destination dans le GPS de la voiture.
 - « Mot de passe refusé. » : l'en-tête `Authorization` du raccourci ne correspond pas au secret `MOT_DE_PASSE`.
 - « Erreur : le jeton Teslemetry est refusé. » : secret `TESLEMETRY_JETON` incorrect ou jeton expiré.
 - « La Tesla a refusé : … » : la voiture n'a pas accepté la commande (endormie, clé virtuelle Teslemetry absente…).
