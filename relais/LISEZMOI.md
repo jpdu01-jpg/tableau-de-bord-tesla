@@ -71,3 +71,70 @@ En ouvrant l'adresse du Worker dans un navigateur, la page affiche « Origine re
 
 Offre gratuite D1 : 5 Go de stockage (un trajet fait moins d'1 Ko) et largement assez de lectures et d'écritures
 par jour ; Workers : 100 000 requêtes par jour, pour quelques-unes par trajet.
+
+---
+
+# Changement de borne à la voix (Cloudflare Workers + raccourci Siri)
+
+« **Dis Siri, change de borne** » → « Quel réseau ? » → « **Electra** » → Siri propose la meilleure borne près du
+prochain arrêt de la Tesla (« Electra Boulazac, 150 kilowatts, à 3,7 kilomètres de l'arrêt prévu… Je l'envoie ? »)
+→ « **Oui** » → la Tesla reçoit la nouvelle destination.
+
+- Réseaux : Tesla ou Electra en premier ; à défaut, les partenaires Electra (Ionity, Atlante). Jamais une borne
+  demandant un détour de plus de 30 km.
+- La commande **remplace le trajet** : la suite du voyage est à reprogrammer à la borne (choix : `ORDRE` en haut de
+  `borne-worker.modele.js`, 2 = ajouter comme prochain arrêt en gardant la suite).
+- Liste des bornes : `data/bornes.json` (base nationale des IRVE), mise à jour avec `python3 outils/bornes.py`.
+
+**Sécurité** : ce Worker peut envoyer une commande à la voiture. Il ne fait que de la navigation, et seulement vers une
+borne de la liste. Il est protégé par un mot de passe (différent de celui de la sauvegarde) et contient ton jeton
+Teslemetry, tous deux en **secrets** Cloudflare, jamais dans le code.
+
+## 1. Le Worker (environ 5 minutes)
+
+1. Choisir un **nouveau mot de passe long** (app Mots de passe).
+2. dash.cloudflare.com → **Workers & Pages** → **Create** → **Create Worker** → nom `borne-voix` → **Deploy**.
+3. **Edit code** : effacer tout, coller le contenu de **`borne-worker.js`** (pas le fichier « modele »), **Deploy**.
+4. **Settings** → **Variables and Secrets** → **Add**, deux fois, type **Secret** :
+   - `MOT_DE_PASSE` : le mot de passe de l'étape 1 ;
+   - `TESLEMETRY_JETON` : ton jeton d'accès Teslemetry (console Teslemetry, le même que dans l'app).
+   Puis **Deploy**.
+5. Noter l'adresse : `https://borne-voix.<ton-sous-domaine>.workers.dev`.
+
+## 2. Le raccourci Siri (environ 10 minutes, sur l'iPhone)
+
+App **Raccourcis** → **+** → nommer le raccourci **Change de borne** (c'est la phrase à dire à Siri). Ajouter, dans
+l'ordre :
+
+1. **Demander une saisie** : type *Texte*, invite « Quel réseau ? ».
+2. **Obtenir le contenu de l'URL** : adresse `https://borne-voix.<ton-sous-domaine>.workers.dev/proposer`. Toucher
+   « Afficher plus » :
+   - Méthode : **POST** ;
+   - En-têtes : clé `Authorization`, valeur `Bearer ` suivi du mot de passe (avec l'espace après Bearer) ;
+   - Corps de la requête : **JSON**, ajouter un champ *Texte* : clé `reseau`, valeur *Saisie fournie*.
+3. **Obtenir la valeur du dictionnaire** : *Valeur* pour la clé `texte` dans *Contenu de l'URL*.
+   Toucher la variable produite → **Renommer** → `Phrase`.
+4. **Obtenir la valeur du dictionnaire** : *Valeur* pour la clé `borne` dans *Contenu de l'URL*.
+   Renommer → `Borne`.
+5. **Si** : *Borne* **a une valeur**.
+6. (dans le « Si ») **Choisir dans le menu** : invite = la variable *Phrase* ; deux choix : `Oui` et `Non`.
+7. Sous **Oui** : **Obtenir le contenu de l'URL** : même adresse mais finissant par `/envoyer`, méthode POST, même
+   en-tête `Authorization`, corps JSON avec un champ *Texte* : clé `borne`, valeur la variable *Borne*.
+   Puis **Obtenir la valeur du dictionnaire** `texte` de ce *Contenu de l'URL*, puis **Énoncer le texte**.
+8. Sous **Non** : **Énoncer le texte** « D'accord, je ne change rien. »
+9. Sous **Sinon** (pas de borne) : **Énoncer le texte** : la variable *Phrase* (Siri explique pourquoi).
+
+Essai sans rouler : avec une destination saisie dans la Tesla (voiture éveillée), dire « Dis Siri, change de borne »
+puis « Electra » et répondre **Non** : rien n'est envoyé. Répondre **Oui** envoie vraiment la destination.
+
+## Messages possibles
+
+- « Aucune navigation en cours dans la Tesla. » : pas de destination dans le GPS de la voiture.
+- « Mot de passe refusé. » : l'en-tête `Authorization` du raccourci ne correspond pas au secret `MOT_DE_PASSE`.
+- « Erreur : le jeton Teslemetry est refusé. » : secret `TESLEMETRY_JETON` incorrect ou jeton expiré.
+- « La Tesla a refusé : … » : la voiture n'a pas accepté la commande (endormie, clé virtuelle Teslemetry absente…).
+
+## Coût
+
+Gratuit côté Cloudflare. Teslemetry : la lecture de la navigation est gratuite (données en cache, la voiture n'est
+pas réveillée) ; l'envoi de la destination consomme quelques crédits de commande.
