@@ -5,6 +5,8 @@
 //   → POST /proposer { reseau: "Electra" } : lit le prochain arrêt de la Tesla (télémétrie en cache : gratuit, ne
 //     réveille pas la voiture), choisit la meilleure borne, renvoie la phrase que Siri lit
 //   → « Oui » → POST /envoyer { borne: "lat,lon" } : envoie la nouvelle destination au GPS de la Tesla.
+//   Sans navigation en cours : la borne est cherchée autour de la voiture, dont la position est demandée une fois
+//   (vehicle_data, quelques crédits ; ne réveille pas la voiture : si elle dort, rien n'est proposé).
 //
 // Sécurité : ce Worker PEUT envoyer une commande à la voiture. Il est donc limité à la navigation, et seulement vers
 // une borne de la liste data/bornes.json (impossible d'envoyer la voiture ailleurs). Chaque appel doit porter le mot
@@ -34,6 +36,7 @@ async function teslemetry(env, chemin, options = {}) {
     headers: { Authorization: `Bearer ${env.TESLEMETRY_JETON}`, 'Content-Type': 'application/json' },
   });
   if (rep.status === 401) throw new Error('le jeton Teslemetry est refusé');
+  if (rep.status === 408) throw new Error('la Tesla est endormie, elle ne donne pas sa position');
   if (!rep.ok) throw new Error(`Teslemetry a répondu ${rep.status}`);
   return rep.json();
 }
@@ -57,13 +60,26 @@ async function proposer(env, { reseau: texte, rang = 0 }) {
   const champs = encodeURIComponent('DestinationName;DestinationLocation;RouteLine');
   const telemetrie = await teslemetry(env, `/api/1/vehicles/${vin}/telemetry?fields=${champs}`);
   const nav = navigationTeslemetry(telemetrie.response ?? telemetrie);
-  if (!nav) return { ok: false, texte: 'Aucune navigation en cours dans la Tesla.' };
+  if (!nav) return proposerAutour(env, vin, reseau, rang);
   const b = choisirBornes(await lireBornes(), { reseau, arret: nav.arret, trace: nav.trace })[Number(rang) || 0];
   if (!b) {
     return { ok: false, texte: rang ? 'Je n\'ai pas d\'autre borne à proposer.'
       : `Aucune borne ${NOMS_RESEAUX[reseau]} ni partenaire près de l'arrêt prévu sans un détour de plus de ${DETOUR_MAX_KM} kilomètres.` };
   }
   return { ok: true, texte: phraseProposition(b, reseau), borne: `${b.lat},${b.lon}`, nom: `${NOMS_RESEAUX[b.reseau]} ${b.nom}` };
+}
+
+// Pas de navigation : borne autour de la voiture. Sa position n'est pas dans la télémétrie diffusée (champ facturé à
+// chaque signal) : on la demande une seule fois, ici. Pas de réveil : si la voiture dort, Teslemetry répond 408.
+async function proposerAutour(env, vin, reseau, rang) {
+  const position = positionVehicule(await teslemetry(env, `/api/1/vehicles/${vin}/vehicle_data?endpoints=location_data`));
+  if (!position) return { ok: false, texte: 'Pas de navigation en cours, et la Tesla ne donne pas sa position.' };
+  const b = bornesAutour(await lireBornes(), { reseau, position })[Number(rang) || 0];
+  if (!b) {
+    return { ok: false, texte: rang ? 'Je n\'ai pas d\'autre borne à proposer.'
+      : `Aucune borne ${NOMS_RESEAUX[reseau]} ni partenaire à moins de ${RAYON_KM} kilomètres.` };
+  }
+  return { ok: true, texte: phraseAutour(b, reseau), borne: `${b.lat},${b.lon}`, nom: `${NOMS_RESEAUX[b.reseau]} ${b.nom}` };
 }
 
 async function envoyer(env, { borne }) {

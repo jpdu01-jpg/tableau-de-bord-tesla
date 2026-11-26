@@ -1,5 +1,5 @@
 import { test, egal, proche, vrai } from './harness.js';
-import { comprendreReseau, navigationTeslemetry, choisirBornes, phraseProposition, borneConnue } from '../src/lib/bornes.js';
+import { comprendreReseau, navigationTeslemetry, choisirBornes, phraseProposition, borneConnue, positionVehicule, bornesAutour, phraseAutour } from '../src/lib/bornes.js';
 import { encoderPolyline } from '../src/lib/navigation.js';
 
 // Itinéraire fictif plein ouest le long du parallèle 45° ; prochain arrêt (un Superchargeur) au bout.
@@ -74,6 +74,40 @@ test('bornes : phrase lue par Siri', () => {
 test('bornes : seules les bornes de la liste peuvent être envoyées', () => {
   egal(borneConnue(BORNES, { lat: 45.00201, lon: 0.70001 }).nom, 'Sur la route');
   egal(borneConnue(BORNES, { lat: 48.85, lon: 2.35 }), null);
+});
+
+test('bornes : position de la voiture lue dans vehicle_data (cap seulement en roulant)', () => {
+  const p = positionVehicule({ response: { drive_state: { latitude: 45, longitude: 0.6, heading: 270, speed: 60 } } });
+  egal(p.lat, 45); egal(p.lon, 0.6); egal(p.cap, 270);
+  egal(positionVehicule({ response: { drive_state: { latitude: 45, longitude: 0.6, heading: 270, speed: null } } }).cap, null);
+  egal(positionVehicule({ response: { drive_state: {} } }), null);
+  egal(positionVehicule({}), null);
+});
+
+test('bornes : sans navigation, bornes autour de la voiture (devant d\'abord en roulant)', () => {
+  const ici = { lat: 45, lon: 0.6 }; // « Sur la route » ~8 km à l'est, « Loin de la route » ~14 km au nord-ouest, « Gros détour » ~19 km au sud-ouest
+  const noms = (cap) => bornesAutour(BORNES, { reseau: 'electra', position: { ...ici, cap } }).map((b) => b.nom).join(',');
+  egal(noms(null), 'Sur la route,Loin de la route,Gros détour'); // à l'arrêt : la plus proche
+  egal(noms(90), 'Sur la route,Loin de la route,Gros détour'); // vers l'est
+  egal(noms(270), 'Loin de la route,Sur la route,Gros détour'); // vers l'ouest : pas de demi-tour
+  const [b] = bornesAutour(BORNES, { reseau: 'electra', position: { ...ici, cap: 90 } });
+  egal(b.devant, true);
+  proche(b.distanceKm, 7.9, 0.2);
+  // Partenaires seulement si le réseau demandé n'a rien dans le rayon
+  egal(bornesAutour(BORNES.filter((x) => x.reseau !== 'electra'), { reseau: 'electra', position: ici })[0].nom, 'Partenaire');
+  egal(bornesAutour(BORNES, { reseau: 'electra', position: { lat: 48.85, lon: 2.35 } }).length, 0);
+  // En roulant : un partenaire devant plutôt qu'un demi-tour vers une Electra ; demi-tour seulement s'il n'y a rien devant
+  const derriere = [B('electra', 'Electra derrière', 45, 0.5), B('ionity', 'Ionity devant', 45, 0.7)];
+  egal(bornesAutour(derriere, { reseau: 'electra', position: { ...ici, cap: 90 } })[0].nom, 'Ionity devant');
+  egal(bornesAutour(derriere, { reseau: 'electra', position: ici })[0].nom, 'Electra derrière'); // à l'arrêt : le réseau demandé
+  egal(bornesAutour(derriere.slice(0, 1), { reseau: 'electra', position: { ...ici, cap: 90 } })[0].devant, false);
+});
+
+test('bornes : phrase lue par Siri sans navigation', () => {
+  const b = { reseau: 'electra', nom: 'Boulazac', kw: 150, distanceKm: 4.24 };
+  egal(phraseAutour({ ...b, devant: true }, 'electra'), 'Electra Boulazac, 150 kilowatts, à 4,2 kilomètres à vol d\'oiseau devant toi. Je l\'envoie à la voiture ?');
+  egal(phraseAutour({ ...b, devant: null }, 'electra'), 'Electra Boulazac, 150 kilowatts, à 4,2 kilomètres à vol d\'oiseau. Je l\'envoie à la voiture ?');
+  egal(phraseAutour({ ...b, reseau: 'ionity', devant: false }, 'electra'), 'Pas de borne Electra proche. Ionity Boulazac, 150 kilowatts, à 4,2 kilomètres à vol d\'oiseau mais pas dans ta direction. Je l\'envoie à la voiture ?');
 });
 
 // Le Worker (relais/borne-worker.js) contient une copie de ces calculs : elle doit être à jour.
