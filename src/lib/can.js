@@ -28,7 +28,7 @@ export function decouperTrames(paquet) {
 /**
  * Valeurs brutes d'un paquet (seulement celles présentes ; la dernière trame de chaque type l'emporte) :
  * { tensionV, courantA, vitesseKmh, batteriePct, energiePleineKwh, energieRestanteKwh, reserveKwh,
- *   consigneKmh, etatRegulateur, etatAutopilot, limiteKmh, rapport (P, R, N, D) }.
+ *   consigneKmh, etatRegulateur, etatAutopilot, limiteKmh, rapport (P, R, N, D), tempBatterieMinC, tempBatterieMaxC }.
  * limiteKmh vaut null quand la voiture ne connaît pas de limitation.
  */
 export function decoderPaquet(paquet) {
@@ -56,6 +56,12 @@ export function decoderPaquet(paquet) {
           v.energieRestanteKwh = lireBits(octets, 32, 16) * 0.02;
         } else if (lireBits(octets, 0, 2) === 1) {
           v.reserveKwh = lireBits(octets, 16, 16) * 0.01; // réserve que la voiture ne montre pas (« buffer »)
+        }
+        break;
+      case 0x332: // températures des cellules de la batterie (BattBrickMinMax), message 0 ; le message 1 porte les tensions
+        if (lireBits(octets, 0, 2) === 0) {
+          v.tempBatterieMaxC = lireBits(octets, 16, 8) * 0.5 - 40;
+          v.tempBatterieMinC = lireBits(octets, 24, 8) * 0.5 - 40;
         }
         break;
       case 0x1286:
@@ -105,5 +111,7 @@ export function donneesTeslogic(v, memoire = {}) {
   }
   if ('limiteKmh' in v) d.limitKmh = v.limiteKmh;
   if (v.rapport) d.rapport = v.rapport;
+  // Cellules les plus froides : ce sont elles qui limitent la puissance de recharge (vérifier le préchauffage)
+  if (v.tempBatterieMinC != null) d.batteryTempC = v.tempBatterieMinC;
   return d;
 }

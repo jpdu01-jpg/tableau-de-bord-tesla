@@ -9,6 +9,10 @@ const PUISSANCE_MAX = 150; // kW
 const CONSO_BARRE_MAX = 40; // kWh/100 km, pleine échelle de la barre de consommation
 
 const $ = (id) => document.getElementById(id);
+// Repères d'affichage de la température batterie (indicatifs) : en dessous de 20 °C la recharge rapide est bridée ;
+// vers 30 °C et plus, la batterie est préchauffée.
+const BATTERIE_FROIDE_C = 20;
+const BATTERIE_CHAUDE_C = 30;
 const nombre = (v, decimales = 0) =>
   v == null || !Number.isFinite(v) ? '--' : v.toLocaleString('fr-FR', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
 
@@ -102,6 +106,11 @@ export function afficher(e) {
   $('batterie-niveau').style.width = `${Math.min(100, Math.max(0, e.batteryPct ?? 0))}%`;
   $('batterie').classList.toggle('faible', e.batteryPct != null && e.batteryPct <= 20 && e.batteryPct > 10);
   $('batterie').classList.toggle('critique', e.batteryPct != null && e.batteryPct <= 10);
+  const temp = $('batterie-temp');
+  temp.hidden = e.batteryTempC == null;
+  temp.textContent = e.batteryTempC == null ? '' : `· ${nombre(e.batteryTempC)} °C`;
+  temp.classList.toggle('froide', e.batteryTempC != null && e.batteryTempC < BATTERIE_FROIDE_C);
+  temp.classList.toggle('chaude', e.batteryTempC != null && e.batteryTempC >= BATTERIE_CHAUDE_C);
 
   // Puissance : l'arc part du zéro et va vers la valeur (à gauche = récupération)
   const angleZero = P.debut + fractionPuissance(0) * 180;

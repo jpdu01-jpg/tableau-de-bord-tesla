@@ -99,6 +99,8 @@ export class Simulation {
       };
       if (t - derniereBatterie >= 60000) {
         msg.batteryPct = Math.round(batterie); // comme la Tesla réglée à 1 envoi par minute
+        // Température batterie (en réel : boîtier Teslogic) : préchauffage en route, de 12 à 40 °C
+        msg.batteryTempC = Math.min(40, 12 + (t - debut) / 60000);
         derniereBatterie = t;
       }
       if (t - debut >= NAV_APRES_S * 1000 && t - derniereNav >= 60000) {

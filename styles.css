@@ -112,6 +112,9 @@ small { font-size: 0.42em; color: var(--doux); margin-left: 0.35em; font-weight:
 .batterie.faible .batterie-niveau { background: var(--ambre); }
 .batterie.critique .batterie-niveau { background: var(--rouge); }
 .batterie.critique { color: var(--rouge); }
+/* Température batterie : bleue si froide (recharge lente), verte si préchauffée */
+.batterie-temp.froide { color: var(--bleu-tesla); }
+.batterie-temp.chaude { color: var(--vert); }
 .ico { width: 0.7em; height: 0.7em; fill: currentColor; margin-right: 0.25em; align-self: center; }
 
 /* ---------- Puissance et consommation ---------- */

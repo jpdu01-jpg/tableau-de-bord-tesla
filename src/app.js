@@ -48,7 +48,8 @@ const etat = {
   recuLe: 0, // heure de réception (horloge du téléphone) de la dernière position
   nav: {}, // navigation de la Tesla : destinationNom, destinationPos, trace, minutesArrivee, kmArrivee, retardTraficMin, batterieArriveePct
   navRecueLe: 0, // heure de réception des minutes restantes (pour l'heure d'arrivée)
-  can: {}, // dernières valeurs du boîtier Teslogic : powerKw, speedKmh, batteryPct, cruiseKmh, limitKmh
+  batteryTempC: null, // température des cellules les plus froides (mode démo ; en réel : boîtier Teslogic)
+  can: {}, // dernières valeurs du boîtier Teslogic : powerKw, speedKmh, batteryPct, cruiseKmh, limitKmh, batteryTempC
   canT: 0,
   // Depuis le dernier mouvement : true = mise en P ou voiture endormie, false = rapport connu et jamais P, null = inconnu.
   // Sert à décider, au redémarrage, si c'est un nouveau trajet (fin automatique des trajets).
@@ -128,6 +129,7 @@ function surTesla(d) {
     if (!canRecente()) trip.addPower(d.powerKw, d.t); // le boîtier, bien plus précis, s'en charge
   }
   if ('cruiseKmh' in d) etat.cruiseKmh = d.cruiseKmh;
+  if ('batteryTempC' in d) etat.batteryTempC = d.batteryTempC; // mode démo seulement
   if ('autopilotActif' in d) etat.autopilotActif = d.autopilotActif; // mode démo seulement (en réel : boîtier Teslogic)
   if (d.batteryPct != null) {
     etat.batteryPct = d.batteryPct;
@@ -186,6 +188,7 @@ function calculerEcran() {
     powerKw,
     instantKwh100: instantKwhPer100(powerKw, speedKmh),
     batteryPct: can.batteryPct ?? (horlogeTesla - etat.batteryT < 10 * 60000 ? etat.batteryPct : null), // masqué si plus vieux que 10 min
+    batteryTempC: can.batteryTempC ?? (mode === 'reel' ? null : etat.batteryTempC),
     moyenneKwh100: trip.moyenneKwhPer100,
     distanceKm: trip.distanceKm,
     energieKwh: trip.energieKwh,

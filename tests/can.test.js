@@ -14,6 +14,8 @@ const AUTOPILOT = '99 13 01 0a ff 80 b0 44 f1 0b'; // Autopilot 1 (indisponible)
 const RAPPORT_P = '18 01 97 86 30 00 00 48 00 80'; // garé (début de la capture)
 const RAPPORT_R = '18 11 48 6a 55 00 00 68 08 00'; // marche arrière (bus 1)
 const RAPPORT_D = '18 01 51 64 95 00 00 c8 78 ff'; // en route
+const TEMPERATURE = '32 03 0c 06 5f 5e 5f 00 00 00'; // cellules entre 7,0 et 7,5 °C (matin de novembre)
+const TENSIONS = '32 03 39 1f cb 07 17 3d 00 00'; // même message, numéro 1 : tensions des cellules (ignorées)
 const paquet = (...trames) => hex(trames.join(' '));
 
 test('CAN : lecture de bits petit-boutiste', () => {
@@ -91,4 +93,13 @@ test('CAN : rapport de boîte P, R, D (capture réelle, bus 0 et 1)', () => {
   egal(donneesTeslogic(decoderPaquet(paquet(RAPPORT_R))).rapport, 'R');
   egal(donneesTeslogic(decoderPaquet(paquet(RAPPORT_D))).rapport, 'D');
   vrai(!('rapport' in donneesTeslogic(decoderPaquet(paquet(VITESSE)))));
+});
+
+test('CAN : température de la batterie (capture réelle) = cellules les plus froides', () => {
+  const v = decoderPaquet(paquet(TEMPERATURE));
+  egal(v.tempBatterieMaxC, 7.5);
+  egal(v.tempBatterieMinC, 7);
+  egal(donneesTeslogic(v).batteryTempC, 7);
+  vrai(!('tempBatterieMinC' in decoderPaquet(paquet(TENSIONS)))); // message des tensions : pas de température
+  vrai(!('batteryTempC' in donneesTeslogic(decoderPaquet(paquet(VITESSE)))));
 });
