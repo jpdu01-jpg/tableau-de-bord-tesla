@@ -246,11 +246,10 @@ async function demarrer(nouveauMode, reprendre) {
     tesla = lireJetonTeslemetry() ? new TeslaTeslemetry()
       : lireJetonMTM() && FLUX_TESLA ? new TeslaMyTeslaMate() : new TeslaNonConnectee();
     tesla.start(surTesla);
-    const stopGps = startGps(surPosition, (err) => {
-      $('message').textContent = err.message;
-    });
+    lancerGps();
     arreter = () => {
       stopGps();
+      stopGps = () => {};
       tesla.stop();
       teslogic.stop();
     };
@@ -355,6 +354,29 @@ async function exporterHistorique() {
   lien.click();
   setTimeout(() => URL.revokeObjectURL(lien.href), 10000);
 }
+
+// ---------- GPS du téléphone ----------
+// Sur iPhone, le suivi GPS d'une page web s'arrête parfois après un passage en arrière-plan (téléphone verrouillé,
+// autre app) et ne reprend pas : la vitesse et la puissance du boîtier continuent de s'afficher, mais la distance
+// n'avance plus et le trajet n'est pas enregistré. On relance donc le suivi au retour au premier plan, et quand
+// aucune position n'arrive pendant 20 s.
+const GPS_SILENCE_MS = 20000;
+let stopGps = () => {};
+let gpsLanceLe = 0;
+function lancerGps() {
+  stopGps();
+  gpsLanceLe = Date.now();
+  stopGps = startGps(surPosition, (err) => {
+    $('message').textContent = err.message;
+  });
+}
+const gpsActif = () => mode === 'reel' && $('accueil').hidden && document.visibilityState === 'visible';
+setInterval(() => {
+  if (gpsActif() && Date.now() - Math.max(etat.recuLe, gpsLanceLe) > GPS_SILENCE_MS) lancerGps();
+}, 5000);
+document.addEventListener('visibilitychange', () => {
+  if (gpsActif()) lancerGps();
+});
 
 // Empêche l'écran du téléphone de se mettre en veille pendant le trajet.
 async function garderEcranAllume() {
