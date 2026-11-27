@@ -17,6 +17,12 @@ test('Teslemetry : rapport « ShiftStateD » → D, invalide → null', () => {
   egal(valeurTeslemetry('DestinationName', null), null);
   egal(valeurTeslemetry('DestinationName', 'Arpajon'), 'Arpajon');
 });
+test('Teslemetry : rapport de boîte transmis à l\'app (fin de trajet sans boîtier)', () => {
+  const r = interpreterTeslemetry(message({ Gear: 'ShiftStateP' }), VIN, T);
+  egal(donneesTesla(r.champs, {}).rapport, 'P');
+  egal(donneesTesla({ Gear: 'Invalid' }, {}).rapport, undefined);
+  egal(donneesTesla({ Gear: null }, {}).rapport, undefined);
+});
 test('Teslemetry : message de données décodé', () => {
   const r = interpreterTeslemetry(message({ PackVoltage: 380, PackCurrent: 50, DestinationName: 'Arpajon', MinutesToArrival: 16.3 }), VIN, T);
   egal(r.type, 'donnees');

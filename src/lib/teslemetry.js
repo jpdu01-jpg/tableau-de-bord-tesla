@@ -12,6 +12,7 @@ export const CHAMPS_TESLEMETRY = [
   'DestinationName', 'DestinationLocation', 'RouteLine', 'MinutesToArrival', 'MilesToArrival',
   'RouteTrafficMinutesDelay', 'ExpectedEnergyPercentAtTripArrival',
   'BatteryLevel', 'PackVoltage', 'PackCurrent',
+  'Gear', // rapport de boîte : la mise en P coupe les trajets même sans boîtier (quelques signaux par trajet)
 ];
 
 // Au démarrage, Teslemetry renvoie d'abord les dernières valeurs connues (cache). Au-delà de cet âge, elles ne

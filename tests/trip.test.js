@@ -1,5 +1,5 @@
 import { test, egal, proche } from './harness.js';
-import { Trip, powerKw, instantKwhPer100, nouveauTrajetAuDepart, PAUSE_PARKING_MS, PAUSE_SANS_INFO_MS } from '../src/lib/trip.js';
+import { Trip, powerKw, instantKwhPer100, nouveauTrajetAuDepart, PAUSE_PARKING_MS, PAUSE_SANS_INFO_MS, PAUSE_MAX_MS } from '../src/lib/trip.js';
 
 test('puissance : 400 V × 50 A = 20 kW', () => egal(powerKw(400, 50), 20));
 test('puissance : donnée manquante → null', () => egal(powerKw(400, null), null));
@@ -79,7 +79,9 @@ test('trajet : nouveau trajet au redémarrage selon la durée de l\'arrêt', () 
   egal(nouveauTrajetAuDepart(null, 1e9, true), false); // pas encore roulé
   egal(nouveauTrajetAuDepart(0, PAUSE_PARKING_MS - 1, true), false); // P très bref (manœuvre)
   egal(nouveauTrajetAuDepart(0, PAUSE_PARKING_MS, true), true); // garé (P ou voiture endormie)
-  egal(nouveauTrajetAuDepart(0, 3600000, false), false); // resté en D (bouchon) : jamais coupé
+  egal(nouveauTrajetAuDepart(0, PAUSE_MAX_MS - 1, false), false); // resté en D (bouchon) : pas coupé
+  // Cas réel du 27/11 : arrivée 18:59, boîtier reconnecté voiture déjà en D au départ de 20:30 → nouveau trajet
+  egal(nouveauTrajetAuDepart(0, 91 * 60000, false), true);
   egal(nouveauTrajetAuDepart(0, PAUSE_SANS_INFO_MS - 1, null), false); // sans boîtier : feu rouge, bouchon court
   egal(nouveauTrajetAuDepart(0, PAUSE_SANS_INFO_MS, null), true);
 });

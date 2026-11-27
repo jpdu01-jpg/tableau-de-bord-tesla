@@ -150,6 +150,8 @@ export function donneesTesla(champs, memoire, uniteRegulateur = 'kmh') {
     const c = champs.CruiseSetSpeed;
     d.cruiseKmh = c == null || c <= 0 ? null : uniteRegulateur === 'mph' ? c * MILE_KM : c;
   }
+  // Rapport de boîte (Teslemetry : « ShiftStateP » déjà ramené à « P ») : la mise en P marque la fin du trajet.
+  if (['P', 'R', 'N', 'D'].includes(champs.Gear)) d.rapport = champs.Gear;
   // BatteryLevel n'est envoyé que quand il varie d'au moins 1 % : à l'arrêt, il peut ne jamais arriver.
   // En attendant, on affiche Soc (état de charge, déjà envoyé pour TeslaMate : aucun coût en plus).
   if (champs.BatteryLevel != null) {

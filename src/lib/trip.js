@@ -10,18 +10,23 @@ const TROU_MAX_S = 180;
 
 // Fin automatique d'un trajet (une ligne d'historique par étape, comme les autres applis de trajets) : le trajet
 // s'arrête au dernier mouvement ; au redémarrage, on commence un NOUVEAU trajet si l'arrêt a assez duré.
-export const PAUSE_PARKING_MS = 2 * 60000; // voiture mise en P (boîtier) ou endormie (Teslemetry)
+export const PAUSE_PARKING_MS = 5 * 60000; // voiture mise en P (boîtier ou Teslemetry) ou endormie
 export const PAUSE_SANS_INFO_MS = 10 * 60000; // rapport de boîte inconnu : seul le GPS dit que l'on ne bouge plus
+// Arrêt très long : nouveau trajet même si le dernier rapport connu n'est pas P (le boîtier a pu être déconnecté
+// pendant la mise en P, puis reconnecté voiture déjà en D au départ suivant).
+export const PAUSE_MAX_MS = 30 * 60000;
 export const VITESSE_DEPART_KMH = 5; // au-dessus, on roule de nouveau
 
 /**
  * Au redémarrage : faut-il commencer un nouveau trajet ?
  * @param parque true = mise en P ou voiture endormie depuis le dernier mouvement ; false = rapport connu et jamais P
- *               (bouchon : on ne coupe pas) ; null = inconnu (pas de boîtier)
+ *               (bouchon : on ne coupe pas, sauf arrêt de plus de 30 min) ; null = inconnu (pas de boîtier)
  */
 export function nouveauTrajetAuDepart(dernierMouvement, maintenant, parque) {
-  if (dernierMouvement == null || parque === false) return false;
-  return maintenant - dernierMouvement >= (parque ? PAUSE_PARKING_MS : PAUSE_SANS_INFO_MS);
+  if (dernierMouvement == null) return false;
+  const pause = maintenant - dernierMouvement;
+  if (parque === false) return pause >= PAUSE_MAX_MS;
+  return pause >= (parque ? PAUSE_PARKING_MS : PAUSE_SANS_INFO_MS);
 }
 
 /** Puissance en kW à partir de la tension (V) et du courant (A) de la batterie. */
